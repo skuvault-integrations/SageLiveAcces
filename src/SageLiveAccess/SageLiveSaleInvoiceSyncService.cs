@@ -19,7 +19,6 @@ namespace SageLiveAccess
 	{
 		private readonly AsyncQueryManager asyncQueryManager;
 		private readonly PaginationManager paginationManager;
-		private readonly SageLiveAuthInfo _authInfo;
 		private readonly PullInvoicesService pullInvoicesService;
 		private readonly PushInvoiceService pushInvoicesService;
         private readonly string _currencyCode;
@@ -29,7 +28,6 @@ namespace SageLiveAccess
 			var service = SaleForceConnectionCreator.CreateSforceService( authInfo );
 			this.asyncQueryManager = new AsyncQueryManager( service, config, authInfo._refreshToken._refreshToken );
 			this.paginationManager = new PaginationManager( this.asyncQueryManager );
-			this._authInfo = authInfo;
 			this.pullInvoicesService = new PullInvoicesService( this.asyncQueryManager, this.paginationManager, new SageLiveModelDescriber( service ) );
 			this.pushInvoicesService = new PushInvoiceService( this.asyncQueryManager, this.paginationManager, authInfo, settings );
             this._currencyCode = currencyCode;

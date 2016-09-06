@@ -45,8 +45,6 @@ namespace SageLiveAccess.Misc
 			var response = await request.GetResponseAsync();
 			using( var refreshTokenReponseStream = response.GetResponseStream() )
 			{
-//			    var x = new StreamReader( refreshTokenReponseStream );
-//			    var s = x.ReadToEnd();
 				var refreshTokenResponse = JsonSerializer.DeserializeFromStream< SageLiveRefreshTokenResponse >( refreshTokenReponseStream );
 				return refreshTokenResponse.auth_token;
 			}

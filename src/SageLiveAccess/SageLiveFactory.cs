@@ -13,9 +13,14 @@ namespace SageLiveAccess
 			this._config = new SageLiveFactoryConfig( clientId, secretId, redirectUri );
 		}
 
-		public ISageLiveSaleInvoiceSyncService CreateSageLiveInvoiceSyncService( SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings settings, string currencyCode )
+		public ISageLiveSaleInvoiceSyncService CreateSageLiveSaleInvoiceSyncService( SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings settings, string currencyCode )
 		{
 			return new SageLiveSaleInvoiceSyncService( authInfo, this._config, settings, currencyCode );
+		}
+
+		public ISageLivePurchaseInvoiceSyncService CreateSageLivePurchaseInvoiceSyncService( SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings settings, string currencyCode )
+		{
+			return new SageLivePurchaseInvoiceSyncService( authInfo, this._config, settings, currencyCode );
 		}
 
 		public ISageLiveAuthService CreateSageLiveAuthService()

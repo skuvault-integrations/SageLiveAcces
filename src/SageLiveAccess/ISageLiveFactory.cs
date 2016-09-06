@@ -11,8 +11,9 @@ namespace SageLiveAccess
 	public interface ISageLiveFactory
 	{
 
-        ISageLiveSaleInvoiceSyncService CreateSageLiveInvoiceSyncService( SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings settings, string currencyCode );
-        ISageLiveAuthService CreateSageLiveAuthService();
+        ISageLiveSaleInvoiceSyncService CreateSageLiveSaleInvoiceSyncService( SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings settings, string currencyCode );
+		ISageLivePurchaseInvoiceSyncService CreateSageLivePurchaseInvoiceSyncService( SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings settings, string currencyCode );
+		ISageLiveAuthService CreateSageLiveAuthService();
         ISageLiveSettingServicecs CreateSageLiveSettingsService( SageLiveAuthInfo authInfo );
 	}
 }

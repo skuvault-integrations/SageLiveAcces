@@ -24,7 +24,7 @@ namespace SageLiveAccess
 
         public async Task< SageLiveLegislationInfo > GetLegislationInfo( CancellationToken ct )
         {
-            var legislations = await this.paginationManager.GetAll< s2cor__Sage_COR_Legislation__c >( "SELECT Id, Name FROM s2cor__Sage_COR_Legislation__c" ).ConfigureAwait( false );
+            var legislations = await this.paginationManager.GetAll< s2cor__Sage_COR_Legislation__c >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_COR_Legislation__c" ) /*"SELECT Id, Name FROM s2cor__Sage_COR_Legislation__c"*/ ).ConfigureAwait( false );
             return new SageLiveLegislationInfo
             {
                 legislations = legislations.ToDictionary( kv => kv.Id, kv => kv.Name )
@@ -33,7 +33,7 @@ namespace SageLiveAccess
 
         public async Task< SageLiveInvoiceAccountInfo > GetInvoiceAccountInfo( CancellationToken ct )
         {
-            var currencies = await this.paginationManager.GetAll< Account >( "SELECT Id, Name FROM Account" );
+            var currencies = await this.paginationManager.GetAll< Account >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "Account" ) );
             return new SageLiveInvoiceAccountInfo
             {
                 invoiceAccounts = currencies.ToDictionary( kv => kv.Id, kv => kv.Name )

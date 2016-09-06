@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Netco.Extensions;
 using Netco.Monads;
@@ -11,7 +9,7 @@ using SageLiveAccess.Models.Auth;
 using SageLiveAccess.sforce;
 using Task = System.Threading.Tasks.Task;
 
-namespace SageLiveAccess
+namespace SageLiveAccess.Helpers
 {
 	internal class PresentAndAbsentProductInfo
 	{
@@ -39,7 +37,7 @@ namespace SageLiveAccess
 			return await this._asyncQueryManager.QueryOneAsync< Product2 >( SoqlQuery.Builder().Select( "Id" ).From( "Product2" ).Where( "ProductCode" ).IsEqualTo( sku ) );
 		}
 
-		public sObject CreateProduct( SaleInvoiceItem item )
+		public sObject CreateProduct( InvoiceItem item )
 		{
 			var product = new Product2();
 			product.Name = item.ProductName;
@@ -55,10 +53,12 @@ namespace SageLiveAccess
 			item.s2cor__Quantity__c = quantity;
 			item.s2cor__Unit_Price__c = price;
 			item.s2cor__Trade_Document__c = invoiceId;
+			item.s2cor__Quantity__cSpecified = true;
+			item.s2cor__Unit_Price__cSpecified = true;
 			return item;
 		}
 
-		public async Task< PresentAndAbsentProductInfo > GetPresentAndAbsentProductInfo( IEnumerable< SaleInvoice > saleInvoices )
+		public async Task< PresentAndAbsentProductInfo > GetPresentAndAbsentProductInfo( IEnumerable< InvoiceBase > saleInvoices )
 		{
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Getting present and absent products for push selection..." );
 			var result = new PresentAndAbsentProductInfo();
@@ -90,7 +90,7 @@ namespace SageLiveAccess
 
 		public async Task DeleteOldTransactionItems( string invoiceId )
 		{
-			var ids = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document_Item__c >( "SELECT Id FROM s2cor__Sage_INV_Trade_Document_Item__c WHERE s2cor__Trade_Document__c = '{0}'".FormatWith( invoiceId ) );
+			var ids = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document_Item__c >( SoqlQuery.Builder().Select( "Id" ).From( "s2cor__Sage_INV_Trade_Document_Item__c" ).Where( "s2cor__Trade_Document__c" ).IsEqualTo( invoiceId )  /* "SELECT Id FROM s2cor__Sage_INV_Trade_Document_Item__c WHERE s2cor__Trade_Document__c = '{0}'".FormatWith( invoiceId ) */);
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Deletting all the transactions items for invoice #{0}. Deleted ids: {1}".FormatWith( invoiceId, ids.MakeString() )  );
 			await this._asyncQueryManager.Delete( ids.Select( x => x.Id ).ToArray() );
 		}

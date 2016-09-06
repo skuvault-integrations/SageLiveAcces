@@ -47,7 +47,7 @@ namespace SageLiveAccess.Misc
 				"Updating objects: {0}".FormatWith( source.MakeString() ) );
 		}
 
-		public async Task< List< T > > GetAll< T >( string soqlQuery ) where T : class
+		public async Task< List< T > > GetAll< T >( SoqlQueryBuilder soqlQuery ) where T : class
 		{
 			SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Processing query pagination for SOQL query: {0}".FormatWith( soqlQuery ) );
 			var result = new List< T >();

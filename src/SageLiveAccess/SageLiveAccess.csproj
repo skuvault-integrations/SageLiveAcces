@@ -53,10 +53,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CompanyHelper.cs" />
-    <Compile Include="CurrencyHelper.cs" />
+    <Compile Include="Helpers\CompanyHelper.cs" />
+    <Compile Include="Helpers\CurrencyHelper.cs" />
+    <Compile Include="Helpers\DocumentTypeHelper.cs" />
     <Compile Include="ISageLiveAuthService.cs" />
     <Compile Include="ISageLiveFactory.cs" />
+    <Compile Include="ISageLivePurchaseInvoiceSyncService.cs" />
     <Compile Include="ISageLiveSaleInvoiceSyncService.cs" />
     <Compile Include="ISageLiveSettingServicecs.cs" />
     <Compile Include="Misc\AsyncQueryManager.cs" />
@@ -70,10 +72,12 @@
     <Compile Include="Misc\SoqlQueryBuilder.cs" />
     <Compile Include="Models\Auth\SageLiveRefreshToken.cs" />
     <Compile Include="Models\Auth\SageLiveRefreshTokenResponse.cs" />
+    <Compile Include="Models\PurchaseInvoice.cs" />
     <Compile Include="Models\SageLiveCompanyModel.cs" />
     <Compile Include="Models\SageLiveInvoiceAccountInfo.cs" />
     <Compile Include="Models\SageLiveLegislationInfo.cs" />
     <Compile Include="Models\SageLivePushInvoiceSettings.cs" />
+    <Compile Include="Models\SaleInvoice.cs" />
     <Compile Include="PullInvoicesService.cs" />
     <Compile Include="Misc\SageLiveModelDescriber.cs" />
     <Compile Include="Misc\SaleForceConnectionCreator.cs" />
@@ -91,19 +95,20 @@
     <Compile Include="Models\ContactAndAddressInfo.cs" />
     <Compile Include="Models\ContactInfo.cs" />
     <Compile Include="Models\SageLiveModel.cs" />
-    <Compile Include="Models\SaleInvoice.cs" />
-    <Compile Include="Models\SaleInvoiceItem.cs" />
+    <Compile Include="Models\InvoiceBase.cs" />
+    <Compile Include="Models\InvoiceItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
-    <Compile Include="PushInvoiceHelper.cs" />
-    <Compile Include="PushInvoiceItemHelper.cs" />
+    <Compile Include="Helpers\PushInvoiceHelper.cs" />
+    <Compile Include="Helpers\PushInvoiceItemHelper.cs" />
     <Compile Include="PushInvoiceService.cs" />
     <Compile Include="SageLiveAuthService.cs" />
     <Compile Include="SageLiveFactory.cs" />
+    <Compile Include="SageLivePurchaseInvoiceSyncService.cs" />
     <Compile Include="SageLiveSaleInvoiceSyncService.cs" />
     <Compile Include="SageLiveSettingsService.cs" />
     <Compile Include="Web References\sforce\Reference.cs">

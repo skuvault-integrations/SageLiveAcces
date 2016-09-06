@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SageLiveAccess.Helpers;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models;
 using SageLiveAccess.sforce;
@@ -17,12 +18,14 @@ namespace SageLiveAccess
 		private readonly AsyncQueryManager _asyncQueryManager;
 		private readonly PaginationManager _paginationManager;
 		private readonly SageLiveModelDescriber _describer;
+		private readonly DocumentTypeHelper _documentTypeHelper;
 
 		public PullInvoicesService( AsyncQueryManager asyncQueryManager, PaginationManager paginationManager, SageLiveModelDescriber describer )
 		{
 			this._asyncQueryManager = asyncQueryManager;
 			this._paginationManager = paginationManager;
 			this._describer = describer;
+			this._documentTypeHelper = new DocumentTypeHelper( this._asyncQueryManager );
 		}
 
         private string FormatDate( DateTime dateTime )
@@ -32,8 +35,9 @@ namespace SageLiveAccess
 
 		public async Task< List< SaleInvoice > > GetSaleInvoices( DateTime dateFrom, DateTime dateTo, CancellationToken ct )
 		{
+			var invoiceTypeId = ( await this._documentTypeHelper.GetSaleInvoiceTypeId() ).Id;
             // get raw invoices
-            var rawInvoices = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document__c >( "SELECT Id, Name, s2cor__UID__c, s2cor__Company__c, s2cor__Date__c, s2cor__Currency__c, s2cor__Status__c, SkuVault_Sage__Fulfilled_By__c, s2cor__Is_Paid__c, s2cor__Contact__c, s2cor__Total_Amount__c, LastModifiedDate FROM s2cor__Sage_INV_Trade_Document__c WHERE LastModifiedDate > {0} AND LastModifiedDate < {1}".FormatWith( this.FormatDate( dateFrom ), this.FormatDate( dateTo ) ) );
+            var rawInvoices = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__UID__c", "s2cor__Company__c", "s2cor__Date__c", "s2cor__Currency__c", "s2cor__Status__c", "SkuVault_Sage__Fulfilled_By__c", "s2cor__Is_Paid__c", "s2cor__Contact__c", "s2cor__Total_Amount__c", "LastModifiedDate" ).From( "s2cor__Sage_INV_Trade_Document__c" ).Where( "LastModifiedDate" ).IsGreaterThan( dateFrom ).And( "LastModifiedDate" ).IsLessThan( dateTo ).And( "s2cor__Trade_Document_Type__c" ).IsEqualTo( invoiceTypeId ) /*"SELECT Id, Name, s2cor__UID__c, s2cor__Company__c, s2cor__Date__c, s2cor__Currency__c, s2cor__Status__c, SkuVault_Sage__Fulfilled_By__c, s2cor__Is_Paid__c, s2cor__Contact__c, s2cor__Total_Amount__c, LastModifiedDate FROM s2cor__Sage_INV_Trade_Document__c WHERE LastModifiedDate > {0} AND LastModifiedDate < {1} AND s2cor__Trade_Document_Type__c = '{2}'".FormatWith( this.FormatDate( dateFrom ), this.FormatDate( dateTo ), invoiceTypeId )*/ );
       
             var invoices = rawInvoices.Select( async rawInvoice =>
 			{
@@ -89,13 +93,13 @@ namespace SageLiveAccess
 			};
 		}
 
-		public async Task< List< SaleInvoiceItem > > GetSaleInvoiceItems( s2cor__Sage_INV_Trade_Document__c saleInvoice )
+		public async Task< List< InvoiceItem > > GetSaleInvoiceItems( s2cor__Sage_INV_Trade_Document__c saleInvoice )
 		{
 			// get raw items
-			var rawItems = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document_Item__c >( string.Format( "SELECT s2cor__Trade_Document__c, s2cor__Quantity__c, s2cor__Product__c, s2cor__Unit_Price__c FROM s2cor__Sage_INV_Trade_Document_Item__c WHERE s2cor__Trade_Document__c = '{0}'", saleInvoice.Id ) );
+			var rawItems = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document_Item__c >( SoqlQuery.Builder().Select( "s2cor__Trade_Document__c", "s2cor__Quantity__c", "s2cor__Product__c", "s2cor__Unit_Price__c" ).From( "s2cor__Sage_INV_Trade_Document_Item__c" ).Where( "s2cor__Trade_Document__c" ).IsEqualTo( saleInvoice.Id ) /*string.Format( "SELECT s2cor__Trade_Document__c, s2cor__Quantity__c, s2cor__Product__c, s2cor__Unit_Price__c FROM s2cor__Sage_INV_Trade_Document_Item__c WHERE s2cor__Trade_Document__c = '{0}'", saleInvoice.Id ) */ );
 			var items = rawItems.Select( async rawItem =>
 			{
-				var item = new SaleInvoiceItem();
+				var item = new InvoiceItem();
 
 				var rawProduct = await this._asyncQueryManager.QueryOneAsync< Product2 >( SoqlQuery.Builder().Select( "Name", "Description", "s2cor__UID__c", "ProductCode" ).From( "Product2" ).Where( "Id" ).IsEqualTo( rawItem.s2cor__Product__c ) );
 

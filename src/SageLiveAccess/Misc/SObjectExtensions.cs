@@ -32,12 +32,12 @@ namespace SageLiveAccess.Misc
 			return string.Join( ",", objects.Select( o => o.Id ) );
 		}
 
-		public static string MakeString( this IEnumerable< SaleInvoice > objects )
+		public static string MakeString( this IEnumerable< InvoiceBase > objects )
 		{
 			return string.Join( ",", objects.Select( o => o.UID ) );
 		}
 
-		public static string MakeString( this IEnumerable< SaleInvoiceItem > objects )
+		public static string MakeString( this IEnumerable< InvoiceItem > objects )
 		{
 			return string.Join( ",", objects.Select( o => o.ProductCode ) );
 		}

@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models;
 using SageLiveAccess.sforce;
-using ServiceStack;
 
-namespace SageLiveAccess
+namespace SageLiveAccess.Helpers
 {
     internal class CompanyHelper
     {
@@ -19,7 +14,7 @@ namespace SageLiveAccess
             this._asyncQueryManager = asyncQueryManager;
         }
 
-        public async Task< Account > GetOrCreateAccount( SaleInvoice invoice )
+        public async Task< Account > GetOrCreateAccount( InvoiceBase invoice )
         {
             var acc = await this._asyncQueryManager.QueryOneAsync< Account >( SoqlQuery.Builder().Select( "Id" ).From( "Account" ).Where( "Name" ).IsEqualTo( invoice.AccountName ) );
             if( acc.HasValue )

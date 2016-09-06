@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Netco.Extensions;
 using Netco.Monads;
+using SageLiveAccess.Helpers;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models;
 using SageLiveAccess.Models.Auth;
@@ -21,6 +22,7 @@ namespace SageLiveAccess
 		private readonly PaginationManager _paginationManager;
 		private readonly PushInvoiceItemHelper _invoiceItemHelper;
 		private readonly PushInvoiceHelper _invoiceHelper;
+		private readonly DocumentTypeHelper _documentTypeHelper;
         private readonly CurrencyHelper _currencyHelper;
 
 		const string ServiceName = "PullInvoiceService";
@@ -33,14 +35,10 @@ namespace SageLiveAccess
 			this._invoiceItemHelper = new PushInvoiceItemHelper( asyncQueryManager, paginationManager, authInfo );
 			this._invoiceHelper = new PushInvoiceHelper( asyncQueryManager, paginationManager, authInfo, pushInvoiceSettings );
             this._currencyHelper = new CurrencyHelper( this._paginationManager, this._asyncQueryManager );
+			this._documentTypeHelper = new DocumentTypeHelper( this._asyncQueryManager );
 		}
 
-		private async Task< s2cor__Sage_INV_Trade_Document_Type__c > GetSaleInvoiceTypeId()
-		{
-			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_INV_Trade_Document_Type__c >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_INV_Trade_Document_Type__c" ).Where( "Name" ).IsEqualTo( "Sales Invoice" ) ) ).Value;
-		}
-
-		private async Task PushTransactionItems( IEnumerable< SaleInvoice > saleInvoices, string[] saleInvoicesCreated, Dictionary< string, string > existingProducts )
+		private async Task PushTransactionItems( IEnumerable< InvoiceBase > saleInvoices, string[] saleInvoicesCreated, Dictionary< string, string > existingProducts )
 		{			
 			var saleInvoicesArr = saleInvoices.ToArray();
 			var transactionItems = new List< sObject >();
@@ -57,7 +55,7 @@ namespace SageLiveAccess
 			await this._paginationManager.InsertAll( transactionItems );
 		}
 
-		private async Task CreateNewInvoices( IEnumerable< SaleInvoice > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId )
+		private async Task CreateNewInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId )
 		{
 			var presentAndAbsentProductInfo = await this._invoiceItemHelper.GetPresentAndAbsentProductInfo( saleInvoices );
 			var existingProducts = presentAndAbsentProductInfo.existingProducts;
@@ -70,7 +68,7 @@ namespace SageLiveAccess
 			await this.PushTransactionItems( saleInvoices, saleInvoicesCreated, existingProducts );
 		}
 
-		private async Task UpdateExistingInvoices( IEnumerable< KeyValuePair< SaleInvoice, string > > saleInvoicesInfo, string salesInvoiceDocumentTypeId, string currencyId )
+		private async Task UpdateExistingInvoices( IEnumerable< KeyValuePair< InvoiceBase, string > > saleInvoicesInfo, string salesInvoiceDocumentTypeId, string currencyId )
 		{
 			foreach( var invoiceKv in saleInvoicesInfo )
 			{
@@ -90,16 +88,28 @@ namespace SageLiveAccess
 			await this.PushTransactionItems( saleInvoices, saleInvoicesInfo.Select( x => x.Value ).ToArray(), existingProducts );
 		}
 
-		public async Task PushSaleInvoices( IEnumerable< SaleInvoice > saleInvoices, string currecyCode, CancellationToken ct )
+		private async Task PushInvoices( IEnumerable<InvoiceBase> saleInvoices, string currecyCode, string invoiceTypeId,CancellationToken ct )
 		{
-			var salesInvoiceDocumentTypeId = ( await this.GetSaleInvoiceTypeId() ).Id;
-            var currencyId = ( await this._currencyHelper.GetCurrencyByCode( currecyCode ) ).Value.Id;
+			var currencyId = ( await this._currencyHelper.GetCurrencyByCode( currecyCode ) ).Value.Id;
 
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Processing invoices for further creating or updating: {0} ".FormatWith( saleInvoices.MakeString() ) );
 			var invoiceInfo = await this._invoiceHelper.GetPresentAndAbsentInvoiceInfo( saleInvoices );
-			await this.CreateNewInvoices( invoiceInfo._invoicesToCreate, salesInvoiceDocumentTypeId, currencyId );
-            // off for now
-//			await this.UpdateExistingInvoices( invoiceInfo._invoicesToUpdate, salesInvoiceDocumentTypeId, currencyId );
+			await this.CreateNewInvoices( invoiceInfo._invoicesToCreate, invoiceTypeId, currencyId );
+			// off for now
+			//			await this.UpdateExistingInvoices( invoiceInfo._invoicesToUpdate, salesInvoiceDocumentTypeId, currencyId );
 		}
+
+		public async Task PushSaleInvoices( IEnumerable< SaleInvoice > saleInvoices, string currecyCode, CancellationToken ct )
+		{
+			var invoiceDocumentTypeId = ( await this._documentTypeHelper.GetSaleInvoiceTypeId() ).Id;
+			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, ct );
+		}
+
+		public async Task PushPurchaseInvoices( IEnumerable< PurchaseInvoice > saleInvoices, string currecyCode, CancellationToken ct )
+		{
+			var invoiceDocumentTypeId = ( await this._documentTypeHelper.GetPurchaseInvoiceTypeId() ).Id;
+			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, ct );
+		}
+
 	}
 }

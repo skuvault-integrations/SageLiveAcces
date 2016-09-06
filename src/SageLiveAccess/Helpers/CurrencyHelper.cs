@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Netco.Monads;
 using SageLiveAccess.Misc;
 using SageLiveAccess.sforce;
-using ServiceStack;
 
-namespace SageLiveAccess
+namespace SageLiveAccess.Helpers
 {
     internal class CurrencyHelper
     {

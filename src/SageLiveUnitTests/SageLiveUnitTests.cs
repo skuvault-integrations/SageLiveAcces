@@ -31,21 +31,21 @@ namespace SageLiveUnitTests
 
 			this._factory = new SageLiveFactory( credentials[ 0 ], credentials[ 1 ], credentials[ 2 ] );
 			this._authInfo = new SageLiveAuthInfo(
-						new SageLiveSessionId( credentials[ 3 ] ),
-						new SageLiveOrganizationId( credentials[ 4 ] ),
-						new SageLiveUserId( credentials[ 5 ] ),
-						new SageLiveInstanceUrl( credentials[ 6 ] ),
-						new SageLiveRefreshToken( credentials[ 7 ] )
-					);
+				new SageLiveSessionId( credentials[ 3 ] ),
+				new SageLiveOrganizationId( credentials[ 4 ] ),
+				new SageLiveUserId( credentials[ 5 ] ),
+				new SageLiveInstanceUrl( credentials[ 6 ] ),
+				new SageLiveRefreshToken( credentials[ 7 ] )
+				);
 		}
 
 		[ TestMethod ]
 		public void InvoiceGetTest()
 		{
-			var service = this._factory.CreateSageLiveInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "AnythingCompany" ), "USD" );
-		    var now = DateTime.UtcNow;
+			var service = this._factory.CreateSageLiveSaleInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "AnythingCompany" ), "USD" );
+			var now = DateTime.UtcNow;
 
-            var x = service.GetSaleInvoices( now.AddDays( -1 ), now, CancellationToken.None ).Result;
+			var x = service.GetSaleInvoices( now.AddDays( -60 ), now, CancellationToken.None ).Result;
 			Assert.AreEqual( true, true );
 		}
 
@@ -70,9 +70,9 @@ namespace SageLiveUnitTests
 				},
 				CreationDate = DateTime.Now,
 				FulfilledBy = "3PL",
-				Items = new List< SaleInvoiceItem >
+				Items = new List< InvoiceItem >
 				{
-					new SaleInvoiceItem
+					new InvoiceItem
 					{
 						ProductCode = "CODEN1",
 						ProductName = "New Product",
@@ -83,11 +83,53 @@ namespace SageLiveUnitTests
 				},
 				LastModifiedDate = DateTime.Now,
 				Status = "Unsubmitted",
-                AccountName = "NewAccount"
+				AccountName = "NewAccount"
 			};
 
-			var service = this._factory.CreateSageLiveInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "Anything's Company" ), "USD" );
+			var service = this._factory.CreateSageLiveSaleInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "Anything's Company" ), "USD" );
 			service.PushSaleInvoices( new List< SaleInvoice > { salesInvoice }, CancellationToken.None ).Wait();
+			Assert.AreEqual( true, true );
+		}
+
+		[ TestMethod ]
+		public void InvoiceCreateTestPurchase()
+		{
+			var purchaseInvoice = new PurchaseInvoice
+			{
+				UID = "LETITBE-7D8",
+				AddressInfo = new AddressInfo
+				{
+					City = "Ufa",
+					State = "Bashkortostan",
+					Street = "Sesame",
+					Zip = "111111222222"
+				},
+				ContactInfo = new ContactInfo
+				{
+					Company = "New company",
+					FirstName = "Bob",
+					LastName = "Brown"
+				},
+				CreationDate = DateTime.Now,
+				FulfilledBy = "3PL",
+				Items = new List< InvoiceItem >
+				{
+					new InvoiceItem
+					{
+						ProductCode = "CODEN1",
+						ProductName = "New Product",
+						ProductUID = "SLAKD11",
+						Quantity = 1,
+						UnitPrice = 3.50
+					}
+				},
+				LastModifiedDate = DateTime.Now,
+				Status = "Unsubmitted",
+				AccountName = "NewAccount"
+			};
+
+			var service = this._factory.CreateSageLivePurchaseInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "Anything's Company" ), "USD" );
+			service.PushPurchaseInvoices( new List< PurchaseInvoice > { purchaseInvoice }, CancellationToken.None ).Wait();
 			Assert.AreEqual( true, true );
 		}
 

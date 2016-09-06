@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Netco.ActionPolicyServices;
 using Netco.Extensions;
 using Netco.Monads;
 using SageLiveAccess.Models.Auth;
@@ -13,9 +14,26 @@ using Task = System.Threading.Tasks.Task;
 
 namespace SageLiveAccess.Misc
 {
-    internal class AsyncQueryManager: MethodLogging
-    {
-        public const int MaxRetries = 20;
+	internal class SessionExpiredException : Exception
+	{
+		public SessionExpiredException()
+		{
+		}
+
+		public SessionExpiredException( string message )
+			: base( message )
+		{
+		}
+
+		public SessionExpiredException( string message, Exception inner )
+			: base( message, inner )
+		{
+		}
+	}
+
+	internal class AsyncQueryManager: MethodLogging
+	{
+		public const int MaxRetries = 1;//20;
         public Func< int, Task > delay = retryNum => Task.Delay( ( 1 + retryNum ) * 5000 );
 
         private readonly SemaphoreSlim _monitor = new SemaphoreSlim( 0, 1 );
@@ -25,7 +43,9 @@ namespace SageLiveAccess.Misc
         private readonly Guid _instanceId = Guid.NewGuid();
         private QueryResult qr;
 
-        private const string ServiceName = "AsyncQueryManager";
+		private readonly ActionPolicyAsync _asyncPolicy;
+
+		private const string ServiceName = "AsyncQueryManager";
 
         internal class TaskResult< T >
         {
@@ -65,16 +85,32 @@ namespace SageLiveAccess.Misc
 
             this._reAuthService = new SageLiveReAuthService( config );
             this._refreshToken = refreshToken;
-        }
 
-        private async Task< bool > RefreshTokenIfNeeded< T >( TaskResult< T > t )
+			this._asyncPolicy =
+					ActionPolicyAsync.Handle<Exception>().RetryAsync( MaxRetries, async ( ex, i ) =>
+					{
+						SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), string.Format( "Retrying SOAP API request for {0} time, cause: {1}", i, string.Format( "{0} : {1}", ex.Message, ex.StackTrace ) ) );
+						if ( ex is SessionExpiredException )
+						{
+							await this.RefreshTokenIfNeeded();
+						}
+						else await this.delay( i );
+					} );
+		}
+
+		private bool IsSessionExpired< T >( TaskResult< T > t )
+		{
+			if( !( t._exception is System.Web.Services.Protocols.SoapException ) )
+				return false;
+			var soapException = ( System.Web.Services.Protocols.SoapException )t._exception;
+			if( soapException.Code.Name != "INVALID_SESSION_ID" )
+				return false;
+
+			return true;
+		}
+
+		private async Task< bool > RefreshTokenIfNeeded()
         {
-            if( !( t._exception is System.Web.Services.Protocols.SoapException ) )
-                return false;
-            var soapException = ( System.Web.Services.Protocols.SoapException )t._exception;
-            if( soapException.Code.Name != "INVALID_SESSION_ID" )
-                return false;
-
             SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Session token expired. Refreshing..." );
 
             var newSessionId = await this._reAuthService.GetRefreshedToken( this._refreshToken );
@@ -108,38 +144,33 @@ namespace SageLiveAccess.Misc
 
         public async Task< T > RetryWrapper< T >( Action< TaskIdentifier< T > > f, string info )
         {
-            int retryCount = 0;
-            while( retryCount < 20 )
-            {
-                SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Trying {0} with Salesforce SOAP API for the {1} time...".FormatWith( info, retryCount ) );
-                var indentifier = new TaskIdentifier< T >( this, new SemaphoreSlim( 0, 1 ) );
-                f.Invoke( indentifier );
-                await indentifier._monitor.WaitAsync();
-                if( indentifier.result._success )
-                {
-                    SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Salesforce SOAP API request {0} succeeded".FormatWith( info ) );
-                    return indentifier.result._result;
-                }
+	        return await this._asyncPolicy.Get( async () =>
+	        {
+				SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Trying {0} with Salesforce SOAP API request {0}".FormatWith( info ) );
+				var indentifier = new TaskIdentifier<T>( this, new SemaphoreSlim( 0, 1 ) );
+				f.Invoke( indentifier );
 
-                SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Salesforce SOAP API request {0} failed. Reason: {1} -> {2}. Retrying...".FormatWith( info, indentifier.result._exception.Message, indentifier.result._exception.StackTrace ) );
-                if( !await this.RefreshTokenIfNeeded( indentifier.result ) )
-                { 
-                     await this.delay( retryCount );
-                }
-                retryCount++;
-                if( retryCount >= 20 )
-                    throw new AggregateException( "Maximum number of retries reached for SOAP API request {0}".FormatWith( info ), new List< Exception > { indentifier.result._exception } );
-            }
-            throw new InvalidOperationException( "You are not supposed to be here!" );
+				// todo: add comments here
+				// consider renaming monitor to something 
+				await indentifier._monitor.WaitAsync();
+				if ( indentifier.result._success )
+				{
+					SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Salesforce SOAP API request {0} succeeded".FormatWith( info ) );
+					return indentifier.result._result;
+				}
+				if ( this.IsSessionExpired( indentifier.result ) )
+				{
+					throw new SessionExpiredException( "Your session has expired and needs to be refreshed", indentifier.result._exception );
+				}
+
+				throw new AggregateException( "Error occured while trying to execute SOAP API request {0}".FormatWith( info ), new List< Exception > { indentifier.result._exception } );
+			} );
         }
 
-        public async Task< QueryResult > QueryAsync( string soqlQuery )
+        public async Task< QueryResult > QueryAsync( SoqlQueryBuilder builder )
         {
-            //SemaphoreSlim taskMonitor = new SemaphoreSlim( 0, 1 );
-            //this._binding.queryAsync( soqlQuery, new TaskIdentifier( this, taskMonitor ) );
-            //await taskMonitor.WaitAsync();
-            //return this.qr;
-            return await this.RetryWrapper< QueryResult >( t =>
+	        var soqlQuery = builder.Build();
+			return await this.RetryWrapper< QueryResult >( t =>
             {
                 this._binding.queryAsync( soqlQuery, t );
             }, "Quering from SOQL: {0}".FormatWith( soqlQuery ) );

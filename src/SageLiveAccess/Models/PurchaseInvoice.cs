@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SageLiveAccess.Models
 {
-	public class SaleInvoice : InvoiceBase
+	public class PurchaseInvoice : InvoiceBase
 	{
 	}
 }
