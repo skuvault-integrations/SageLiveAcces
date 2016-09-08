@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Netco.Monads;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models;
 using SageLiveAccess.sforce;
@@ -13,6 +14,24 @@ namespace SageLiveAccess.Helpers
         {
             this._asyncQueryManager = asyncQueryManager;
         }
+
+		public async Task< Maybe< Contact > > GetOrCreateContact( InvoiceBase invoice, string accountId )
+		{
+			if( invoice.ContactInfo == null )
+				return Maybe< Contact >.Empty;
+			var nameFormat = string.Format( "{0} {1}", invoice.ContactInfo.FirstName, invoice.ContactInfo.LastName );
+			var contact = await this._asyncQueryManager.QueryOneAsync< Contact >( SoqlQuery.Builder().Select( "Id" ).From( "Contact" ).Where( "Name" ).IsEqualTo( nameFormat ).And( "AccountId").IsEqualTo( accountId ) );
+			if( contact.HasValue )
+				return contact.Value;
+
+			var newContact = new Contact();
+			newContact.FirstName = invoice.ContactInfo.FirstName;
+			newContact.LastName = invoice.ContactInfo.LastName;
+			newContact.AccountId = accountId;
+
+			await this._asyncQueryManager.Insert( new Contact[] { newContact } );
+			return newContact;
+		}
 
         public async Task< Account > GetOrCreateAccount( InvoiceBase invoice )
         {

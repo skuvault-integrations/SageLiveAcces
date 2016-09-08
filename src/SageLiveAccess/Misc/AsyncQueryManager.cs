@@ -33,7 +33,7 @@ namespace SageLiveAccess.Misc
 
 	internal class AsyncQueryManager: MethodLogging
 	{
-		public const int MaxRetries = 1;//20;
+		public const int MaxRetries = 20;
         public Func< int, Task > delay = retryNum => Task.Delay( ( 1 + retryNum ) * 5000 );
 
         private readonly SemaphoreSlim _monitor = new SemaphoreSlim( 0, 1 );
@@ -150,8 +150,6 @@ namespace SageLiveAccess.Misc
 				var indentifier = new TaskIdentifier<T>( this, new SemaphoreSlim( 0, 1 ) );
 				f.Invoke( indentifier );
 
-				// todo: add comments here
-				// consider renaming monitor to something 
 				await indentifier._monitor.WaitAsync();
 				if ( indentifier.result._success )
 				{

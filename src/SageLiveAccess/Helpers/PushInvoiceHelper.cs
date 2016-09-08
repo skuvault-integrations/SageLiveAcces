@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Netco.Extensions;
 using Netco.Monads;
@@ -103,7 +104,7 @@ namespace SageLiveAccess.Helpers
 			return result;
 		}
 
-		public async Task< sObject > CreateInvoice( InvoiceBase invoiceModel, string invoiceTypeId, string currencyId )
+		public async Task< sObject > CreateInvoice( InvoiceBase invoiceModel, string invoiceTypeId, string currencyId, string dimensionId )
 		{
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Creating invoice sObject for invoice #{0}".FormatWith( invoiceModel.UID ) );
 			var company = await this.GetCompanyId( invoiceModel, currencyId );
@@ -111,24 +112,43 @@ namespace SageLiveAccess.Helpers
 			invoice.s2cor__Description__c = invoiceModel.Description ?? "";
 			invoice.s2cor__UID__c = invoiceModel.UID;
 			invoice.s2cor__Company__c = company.Id;
-			invoice.s2cor__Currency__c = company.s2cor__Base_Currency__c; //settings.CurrencyId; //"a155800000084NjAAI";
-			invoice.s2cor__Status__c = "Unsubmitted";
-			invoice.s2cor__Date__c = invoiceModel.CreationDate; //DateTime.Now;
+			invoice.s2cor__Currency__c = company.s2cor__Base_Currency__c; 
+			invoice.s2cor__Status__c = "Submitted";
+			invoice.s2cor__Paid_Amount__c = invoiceModel.Total;
+			invoice.s2cor__Date__c = invoiceModel.CreationDate; 
 			invoice.OwnerId = this._authInfo._userId._userId;
-			invoice.s2cor__Account__c = ( await this._companyHelper.GetOrCreateAccount( invoiceModel ) ).Id; //"0015800000CitcZAAR";
-			invoice.s2cor__Approval_Status__c = "Created";
-			invoice.s2cor__Legislation__c = company.s2cor__Legislation__c; //"a1B580000006bM9EAI";
-			invoice.s2cor__Trade_Document_Type__c = invoiceTypeId; //"a1V58000000BP8JEAW";
+			invoice.s2cor__Account__c = ( await this._companyHelper.GetOrCreateAccount( invoiceModel ) ).Id;
+			invoice.s2cor__Approval_Status__c = "Approved";
 
+			var documentNumber = new s2cor__Sage_ACC_Tag__c();
+			documentNumber.s2cor__Company__c = company.Id;
+			documentNumber.s2cor__Base_Credit__c = ( invoiceModel is SaleInvoice ) ? invoiceModel.Total : 0;
+			documentNumber.s2cor__Base_Credit__cSpecified = true;
+			documentNumber.s2cor__Dimension__c = dimensionId;
+			documentNumber.Name = invoiceModel.UID;
+
+			var documentNumberId = await this._asyncQueryManager.Insert( new[] { documentNumber } );
+			invoice.s2cor__Document_Number_Tag__c = documentNumberId.First().id;
+
+
+			invoice.s2cor__Legislation__c = company.s2cor__Legislation__c; 
+			invoice.s2cor__Trade_Document_Type__c = invoiceTypeId; 
+			var contactMaybe = await this._companyHelper.GetOrCreateContact( invoiceModel, invoice.s2cor__Account__c );
+
+			if ( invoiceModel is SaleInvoice && contactMaybe.HasValue )
+			{
+				invoice.s2cor__Contact__c = contactMaybe.Value.Id;
+			}
+			
 			return invoice;
 		}
 
-		public async Task< List< sObject > > CreateSaleInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId )
+		public async Task< List< sObject > > CreateSaleInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId, string dimensionId )
 		{
 			var invoices = new List< sObject >();
 			foreach ( var saleInvoice in saleInvoices )
 			{
-				invoices.Add( await this.CreateInvoice( saleInvoice, salesInvoiceDocumentTypeId, currencyId ) );
+				invoices.Add( await this.CreateInvoice( saleInvoice, salesInvoiceDocumentTypeId, currencyId, dimensionId ) );
 			}
 
 			return invoices;

@@ -45,7 +45,7 @@ namespace SageLiveUnitTests
 			var service = this._factory.CreateSageLiveSaleInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "AnythingCompany" ), "USD" );
 			var now = DateTime.UtcNow;
 
-			var x = service.GetSaleInvoices( now.AddDays( -60 ), now, CancellationToken.None ).Result;
+			var x = service.GetSaleInvoices( now.AddMinutes( -45 ), now.AddDays( 1 ), CancellationToken.None ).Result;
 			Assert.AreEqual( true, true );
 		}
 
@@ -54,7 +54,7 @@ namespace SageLiveUnitTests
 		{
 			var salesInvoice = new SaleInvoice
 			{
-				UID = "LETITBE-76",
+				UID = "LETITBE-8FFDDDK6",
 				AddressInfo = new AddressInfo
 				{
 					City = "Ufa",
@@ -96,7 +96,7 @@ namespace SageLiveUnitTests
 		{
 			var purchaseInvoice = new PurchaseInvoice
 			{
-				UID = "LETITBE-7D8",
+				UID = "LETITBE-7XGHHDD8",
 				AddressInfo = new AddressInfo
 				{
 					City = "Ufa",

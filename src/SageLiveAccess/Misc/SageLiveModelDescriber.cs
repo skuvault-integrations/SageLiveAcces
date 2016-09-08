@@ -16,21 +16,22 @@ namespace SageLiveAccess.Misc
 			this._binding = binding;
 		}
 
-		public string GetAllFieldsDescribed( Type obj )
+		public IEnumerable< string > GetAllFieldsDescribed( Type obj )
 		{
 			var describerResult = this._binding.describeSObjects( new string[] { obj.Name } );
 			var describedObject = describerResult[ 0 ];
 			var acc = "";
 			for ( int i = 0; i < describedObject.fields.Length; i++ )
 			{
+				yield return describedObject.fields[ i ].name;
 				// Get the field 
-				acc = acc + describedObject.fields[ i ].name;
-				if ( i != describedObject.fields.Length - 1 )
-				{
-					acc = acc + ", ";
-				}
+				//				acc = acc + describedObject.fields[ i ].name;
+				//				if ( i != describedObject.fields.Length - 1 )
+				//				{
+				//					acc = acc + ", ";
+				//				}
 			}
-			return acc;
+//			return acc;
 		}
 	}
 }

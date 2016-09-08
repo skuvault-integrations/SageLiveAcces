@@ -13,15 +13,24 @@ namespace SageLiveAccess.Helpers
 			this._asyncQueryManager = asyncQueryManager;
 		}
 
-		public async Task<s2cor__Sage_INV_Trade_Document_Type__c> GetSaleInvoiceTypeId()
+		public async Task< s2cor__Sage_INV_Trade_Document_Type__c > GetSaleInvoiceTypeId()
 		{
-			return ( await this._asyncQueryManager.QueryOneAsync<s2cor__Sage_INV_Trade_Document_Type__c>( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_INV_Trade_Document_Type__c" ).Where( "Name" ).IsEqualTo( "Sales Invoice" ) ) ).Value;
+			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_INV_Trade_Document_Type__c >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_INV_Trade_Document_Type__c" ).Where( "Name" ).IsEqualTo( "Sales Invoice" ) ) ).Value;
 		}
 
-		public async Task<s2cor__Sage_INV_Trade_Document_Type__c> GetPurchaseInvoiceTypeId()
+		public async Task< s2cor__Sage_ACC_Dimension__c > GetSaleInvoiceDimensionTypeId()
 		{
-			return ( await this._asyncQueryManager.QueryOneAsync<s2cor__Sage_INV_Trade_Document_Type__c>( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_INV_Trade_Document_Type__c" ).Where( "Name" ).IsEqualTo( "Purchase Invoice" ) ) ).Value;
+			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_ACC_Dimension__c >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_ACC_Dimension__c" ).Where( "Name" ).IsEqualTo( "Sales Invoice Number" ) ) ).Value;
 		}
 
+		public async Task< s2cor__Sage_ACC_Dimension__c > GetPurchaseInvoiceDimensionTypeId()
+		{
+			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_ACC_Dimension__c >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_ACC_Dimension__c" ).Where( "Name" ).IsEqualTo( "Purchase Order Number" ) ) ).Value;
+		}
+
+		public async Task< s2cor__Sage_INV_Trade_Document_Type__c > GetPurchaseInvoiceTypeId()
+		{
+			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_INV_Trade_Document_Type__c >( SoqlQuery.Builder().Select( "Id", "Name" ).From( "s2cor__Sage_INV_Trade_Document_Type__c" ).Where( "Name" ).IsEqualTo( "Purchase Order" ) ) ).Value;
+		}
 	}
 }

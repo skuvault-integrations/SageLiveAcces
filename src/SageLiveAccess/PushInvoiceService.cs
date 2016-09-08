@@ -55,7 +55,7 @@ namespace SageLiveAccess
 			await this._paginationManager.InsertAll( transactionItems );
 		}
 
-		private async Task CreateNewInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId )
+		private async Task CreateNewInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId, string dimensionId )
 		{
 			var presentAndAbsentProductInfo = await this._invoiceItemHelper.GetPresentAndAbsentProductInfo( saleInvoices );
 			var existingProducts = presentAndAbsentProductInfo.existingProducts;
@@ -63,12 +63,12 @@ namespace SageLiveAccess
 			await this._invoiceItemHelper.CreateAbsentProducts( presentAndAbsentProductInfo );
 
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Creating new invoices: {0} ".FormatWith( saleInvoices.MakeString() ) );
-			var saleInvoicesCreated = ( await this._paginationManager.InsertAll( await this._invoiceHelper.CreateSaleInvoices( saleInvoices, salesInvoiceDocumentTypeId, currencyId ) ) ).ToArray();
+			var saleInvoicesCreated = ( await this._paginationManager.InsertAll( await this._invoiceHelper.CreateSaleInvoices( saleInvoices, salesInvoiceDocumentTypeId, currencyId, dimensionId ) ) ).ToArray();
 
 			await this.PushTransactionItems( saleInvoices, saleInvoicesCreated, existingProducts );
 		}
 
-		private async Task UpdateExistingInvoices( IEnumerable< KeyValuePair< InvoiceBase, string > > saleInvoicesInfo, string salesInvoiceDocumentTypeId, string currencyId )
+		private async Task UpdateExistingInvoices( IEnumerable< KeyValuePair< InvoiceBase, string > > saleInvoicesInfo, string salesInvoiceDocumentTypeId, string currencyId, string dimensionId )
 		{
 			foreach( var invoiceKv in saleInvoicesInfo )
 			{
@@ -83,18 +83,18 @@ namespace SageLiveAccess
 			await this._invoiceItemHelper.CreateAbsentProducts( presentAndAbsentProductInfo );
 
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Updating existing invoices: {0} ".FormatWith( saleInvoices.MakeString() ) );
-			var saleInvoicesCreated = ( await this._paginationManager.UpdateAll( await this._invoiceHelper.CreateSaleInvoices( saleInvoices, salesInvoiceDocumentTypeId, currencyId ) ) ).ToArray();
+			var saleInvoicesCreated = ( await this._paginationManager.UpdateAll( await this._invoiceHelper.CreateSaleInvoices( saleInvoices, salesInvoiceDocumentTypeId, currencyId, dimensionId ) ) ).ToArray();
 
 			await this.PushTransactionItems( saleInvoices, saleInvoicesInfo.Select( x => x.Value ).ToArray(), existingProducts );
 		}
 
-		private async Task PushInvoices( IEnumerable<InvoiceBase> saleInvoices, string currecyCode, string invoiceTypeId,CancellationToken ct )
+		private async Task PushInvoices( IEnumerable<InvoiceBase> saleInvoices, string currecyCode, string invoiceTypeId, string dimemsionId, CancellationToken ct )
 		{
 			var currencyId = ( await this._currencyHelper.GetCurrencyByCode( currecyCode ) ).Value.Id;
 
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Processing invoices for further creating or updating: {0} ".FormatWith( saleInvoices.MakeString() ) );
 			var invoiceInfo = await this._invoiceHelper.GetPresentAndAbsentInvoiceInfo( saleInvoices );
-			await this.CreateNewInvoices( invoiceInfo._invoicesToCreate, invoiceTypeId, currencyId );
+			await this.CreateNewInvoices( invoiceInfo._invoicesToCreate, invoiceTypeId, currencyId, dimemsionId );
 			// off for now
 			//			await this.UpdateExistingInvoices( invoiceInfo._invoicesToUpdate, salesInvoiceDocumentTypeId, currencyId );
 		}
@@ -102,13 +102,15 @@ namespace SageLiveAccess
 		public async Task PushSaleInvoices( IEnumerable< SaleInvoice > saleInvoices, string currecyCode, CancellationToken ct )
 		{
 			var invoiceDocumentTypeId = ( await this._documentTypeHelper.GetSaleInvoiceTypeId() ).Id;
-			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, ct );
+			var dimensionId = ( await this._documentTypeHelper.GetSaleInvoiceDimensionTypeId() ).Id;
+			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, dimensionId, ct );
 		}
 
 		public async Task PushPurchaseInvoices( IEnumerable< PurchaseInvoice > saleInvoices, string currecyCode, CancellationToken ct )
 		{
 			var invoiceDocumentTypeId = ( await this._documentTypeHelper.GetPurchaseInvoiceTypeId() ).Id;
-			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, ct );
+			var dimensionId = ( await this._documentTypeHelper.GetPurchaseInvoiceDimensionTypeId() ).Id; // will not be used for now
+			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, dimensionId, ct );
 		}
 
 	}
