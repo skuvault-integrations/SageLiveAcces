@@ -96,7 +96,7 @@ namespace SageLiveUnitTests
 		{
 			var purchaseInvoice = new PurchaseInvoice
 			{
-				UID = "LETITBE-7XGHHDD8",
+				UID = "LETITBE-EMPTY4",
 				AddressInfo = new AddressInfo
 				{
 					City = "Ufa",
@@ -116,9 +116,9 @@ namespace SageLiveUnitTests
 				{
 					new InvoiceItem
 					{
-						ProductCode = "CODEN1",
-						ProductName = "New Product",
-						ProductUID = "SLAKD11",
+						ProductCode = "CODEN1NNN",
+						ProductName = "",
+						ProductUID = "SLAKD11NN",
 						Quantity = 1,
 						UnitPrice = 3.50
 					}

@@ -40,7 +40,7 @@ namespace SageLiveAccess.Helpers
 		public sObject CreateProduct( InvoiceItem item )
 		{
 			var product = new Product2();
-			product.Name = item.ProductName;
+			product.Name = string.IsNullOrWhiteSpace( item.ProductName ) ? string.Format( "Untitled ({0})", item.ProductCode ) : item.ProductName;
 			product.ProductCode = item.ProductCode;
 
 			return product;
