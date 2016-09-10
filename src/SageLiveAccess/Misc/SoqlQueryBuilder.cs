@@ -56,7 +56,7 @@ namespace SageLiveAccess.Misc
 
 		private static string FormatDate( DateTime dateTime )
 		{
-			return dateTime.ToString( "yyyy-MM-ddThh:mm:ssZ" );
+			return dateTime.ToString( "yyyy-MM-ddTHH:mm:ssZ" );
 		}
 
 		public SoqlQueryBuilder IsLessThan( DateTime value )
