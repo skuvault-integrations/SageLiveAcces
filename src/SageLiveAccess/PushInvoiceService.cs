@@ -90,8 +90,8 @@ namespace SageLiveAccess
 
 		private async Task PushInvoices( IEnumerable<InvoiceBase> saleInvoices, string currecyCode, string invoiceTypeId, string dimemsionId, CancellationToken ct )
 		{
-			var currencyId = ( await this._currencyHelper.GetCurrencyByCode( currecyCode ) ).Value.Id;
-
+			var currencyId = ( await this._currencyHelper.GetCurrencyByCode( currecyCode ) ).Id;
+	
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Processing invoices for further creating or updating: {0} ".FormatWith( saleInvoices.MakeString() ) );
 			var invoiceInfo = await this._invoiceHelper.GetPresentAndAbsentInvoiceInfo( saleInvoices );
 			await this.CreateNewInvoices( invoiceInfo._invoicesToCreate, invoiceTypeId, currencyId, dimemsionId );

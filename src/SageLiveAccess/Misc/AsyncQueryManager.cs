@@ -36,7 +36,6 @@ namespace SageLiveAccess.Misc
 		public const int MaxRetries = 1;
         public Func< int, Task > delay = retryNum => Task.Delay( ( 1 + retryNum ) * 5000 );
 
-        private readonly SemaphoreSlim _monitor = new SemaphoreSlim( 0, 1 );
         private readonly SforceService _binding;
         private readonly string _refreshToken;
         private readonly SageLiveReAuthService _reAuthService;
@@ -64,13 +63,13 @@ namespace SageLiveAccess.Misc
         internal class TaskIdentifier< T >
         {
             public readonly Guid _taskGUID;
-            public readonly SemaphoreSlim _monitor;
+            public readonly SemaphoreSlim _callbackMonitor;
             public TaskResult< T > result;
 
-            public TaskIdentifier( AsyncQueryManager manager, SemaphoreSlim monitor )
+            public TaskIdentifier( AsyncQueryManager manager, SemaphoreSlim callbackMonitor )
             {
                 this._taskGUID = manager._instanceId;
-                this._monitor = monitor;
+                this._callbackMonitor = callbackMonitor;
             }
         }
 
@@ -150,7 +149,7 @@ namespace SageLiveAccess.Misc
 				var indentifier = new TaskIdentifier<T>( this, new SemaphoreSlim( 0, 1 ) );
 				f.Invoke( indentifier );
 
-				await indentifier._monitor.WaitAsync();
+				await indentifier._callbackMonitor.WaitAsync();
 				if ( indentifier.result._success )
 				{
 					SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Salesforce SOAP API request {0} succeeded".FormatWith( info ) );
@@ -208,7 +207,7 @@ namespace SageLiveAccess.Misc
 
             SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Query completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
             taskIdentifier.result = result;
-            taskIdentifier._monitor.Release();
+            taskIdentifier._callbackMonitor.Release();
         }
 
         void Binding_queryMoreCompleted( object sender, queryMoreCompletedEventArgs e )
@@ -225,7 +224,7 @@ namespace SageLiveAccess.Misc
 
             SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "QueryMore completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
             taskIdentifier.result = result;
-            taskIdentifier._monitor.Release();
+            taskIdentifier._callbackMonitor.Release();
         }
 
         private void BindingOnCreateCompleted( object sender, createCompletedEventArgs e )
@@ -242,7 +241,7 @@ namespace SageLiveAccess.Misc
 
             SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Insert completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
             taskIdentifier.result = result;
-            taskIdentifier._monitor.Release();
+            taskIdentifier._callbackMonitor.Release();
         }
 
         private void BindingOnUpdateCompleted( object sender, updateCompletedEventArgs e )
@@ -259,7 +258,7 @@ namespace SageLiveAccess.Misc
 
             SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Update completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
             taskIdentifier.result = result;
-            taskIdentifier._monitor.Release();
+            taskIdentifier._callbackMonitor.Release();
         }
 
         private void BindingOnDeleteCompleted( object sender, deleteCompletedEventArgs e )
@@ -276,7 +275,7 @@ namespace SageLiveAccess.Misc
 
             SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Update completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
             taskIdentifier.result = result;
-            taskIdentifier._monitor.Release();
+            taskIdentifier._callbackMonitor.Release();
         }
     }
 }
