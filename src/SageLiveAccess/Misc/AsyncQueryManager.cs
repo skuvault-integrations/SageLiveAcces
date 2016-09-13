@@ -33,7 +33,7 @@ namespace SageLiveAccess.Misc
 
 	internal class AsyncQueryManager: MethodLogging
 	{
-		public const int MaxRetries = 20;
+		public const int MaxRetries = 1;
         public Func< int, Task > delay = retryNum => Task.Delay( ( 1 + retryNum ) * 5000 );
 
         private readonly SemaphoreSlim _monitor = new SemaphoreSlim( 0, 1 );

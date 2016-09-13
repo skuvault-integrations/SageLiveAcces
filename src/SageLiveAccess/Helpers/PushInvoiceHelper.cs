@@ -71,6 +71,11 @@ namespace SageLiveAccess.Helpers
 //			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( "SELECT Id, Name, s2cor__Legislation__c, s2cor__Base_Currency__c FROM s2cor__Sage_COR_Company__c" ) ).Value;
 //		}
 
+		private bool AreRegionSettingsChanged( s2cor__Sage_COR_Company__c company, string currencyId )
+		{
+			return ( !company.s2cor__Legislation__c.Equals( this._pushSettings._legislationId ) || !company.s2cor__Base_Currency__c.Equals( currencyId ) );
+		}
+
 		private async Task< s2cor__Sage_COR_Company__c > GetCompanyId( InvoiceBase invoiceBase, string currencyId )
 		{
 			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Getting company Id for invoice #{0}".FormatWith( invoiceBase.UID ) );
@@ -80,8 +85,22 @@ namespace SageLiveAccess.Helpers
 		        BaseCurrency = currencyId,
 		        LegislationId = this._pushSettings._legislationId,
 		        Name = ( invoiceBase is SaleInvoice ) ? this._pushSettings._companyName : invoiceBase.ContactInfo.Company
-		    };	
-			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__Legislation__c", "s2cor__Base_Currency__c" ).From( "s2cor__Sage_COR_Company__c" ).Where( "Name" ).IsEqualTo( this._pushSettings._companyName ) ) ).GetValue( await this._companyHelper.GetOrCreateCompany( companyInfo ) );
+		    };
+
+			var companyMaybe = await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__Legislation__c", "s2cor__Base_Currency__c" ).From( "s2cor__Sage_COR_Company__c" ).Where( "Name" ).IsEqualTo( this._pushSettings._companyName ) );
+			if( companyMaybe.HasValue )
+			{
+				if( this.AreRegionSettingsChanged( companyMaybe.Value, currencyId ) )
+				{
+					var updatedCompany = companyMaybe.Value;
+					updatedCompany.s2cor__Legislation__c = this._pushSettings._legislationId;
+					updatedCompany.s2cor__Base_Currency__c = currencyId;
+					await this._asyncQueryManager.Update( new sObject[] { updatedCompany } );
+					return updatedCompany;
+				}
+			}
+
+			return await this._companyHelper.GetOrCreateCompany( companyInfo );
 		}
 
 		public async Task< Maybe< s2cor__Sage_INV_Trade_Document__c > > GetInvoice( InvoiceBase invoice )
@@ -112,7 +131,7 @@ namespace SageLiveAccess.Helpers
 			invoice.s2cor__Description__c = invoiceModel.Description ?? "";
 			invoice.s2cor__UID__c = invoiceModel.UID;
 			invoice.s2cor__Company__c = company.Id;
-			invoice.s2cor__Currency__c = company.s2cor__Base_Currency__c; 
+			invoice.s2cor__Currency__c = currencyId; //company.s2cor__Base_Currency__c; 
 			invoice.s2cor__Status__c = "Submitted";
 			invoice.s2cor__Paid_Amount__c = invoiceModel.Total;
 			invoice.s2cor__Date__c = invoiceModel.CreationDate; 
@@ -131,7 +150,7 @@ namespace SageLiveAccess.Helpers
 			invoice.s2cor__Document_Number_Tag__c = documentNumberId.First().id;
 
 
-			invoice.s2cor__Legislation__c = company.s2cor__Legislation__c; 
+			invoice.s2cor__Legislation__c = /*this._pushSettings._legislationId;*/ company.s2cor__Legislation__c; 
 			invoice.s2cor__Trade_Document_Type__c = invoiceTypeId; 
 			var contactMaybe = await this._companyHelper.GetOrCreateContact( invoiceModel, invoice.s2cor__Account__c );
 
