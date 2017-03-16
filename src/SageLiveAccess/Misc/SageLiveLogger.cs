@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Netco.Logging;
 
 namespace SageLiveAccess.Misc
 {
-	class SageLiveLogger
+	internal class SageLiveLogger
 	{
 		public static ILogger Log()
 		{
@@ -17,6 +13,11 @@ namespace SageLiveAccess.Misc
 		public static void Debug( string prefix, string info )
 		{
 			Log().Debug( "[SageLive] {0}. {1}", prefix, info );
+		}
+
+		public static void Error( Exception ex, string prefix, string info )
+		{
+			Log().Error( ex, "[SageLive] {0}. {1}", prefix, info );
 		}
 	}
 }
