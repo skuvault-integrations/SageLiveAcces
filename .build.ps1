@@ -66,7 +66,7 @@ task NuGet Package, Version, {
 <package>
 	<metadata>
 		<id>$project_name</id>
-		<version>$Version-rc1</version>
+		<version>$Version</version>
 		<authors>Agile Harbor</authors>
 		<owners>Agile Harbor</owners>
 		<projectUrl>https://github.com/agileharbor/$project_name</projectUrl>
@@ -78,7 +78,7 @@ task NuGet Package, Version, {
 		<tags>$project_short_name</tags>
 		<dependencies> 
 			<group targetFramework="net45">	
-				<dependency id="Netco" version="1.5.2" />
+				<dependency id="Netco" version="1.5.6" />
 				<dependency id="CuttingEdge.Conditions" version="1.2.0.0" />
 				<dependency id="ServiceStack.Text" version="4.0.60" />
 			</group>
