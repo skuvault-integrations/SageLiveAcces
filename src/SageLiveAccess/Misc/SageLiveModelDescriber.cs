@@ -20,7 +20,7 @@ namespace SageLiveAccess.Misc
 		{
 			var describerResult = this._binding.describeSObjects( new string[] { obj.Name } );
 			var describedObject = describerResult[ 0 ];
-			var acc = "";
+			//var acc = "";
 			for ( int i = 0; i < describedObject.fields.Length; i++ )
 			{
 				yield return describedObject.fields[ i ].name;

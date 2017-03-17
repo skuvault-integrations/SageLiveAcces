@@ -40,7 +40,6 @@ namespace SageLiveAccess.Misc
         private readonly string _refreshToken;
         private readonly SageLiveReAuthService _reAuthService;
         private readonly Guid _instanceId = Guid.NewGuid();
-        private QueryResult qr;
 
 		private readonly ActionPolicyAsync _asyncPolicy;
 

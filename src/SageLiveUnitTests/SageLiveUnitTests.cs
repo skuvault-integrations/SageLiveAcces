@@ -18,9 +18,9 @@ namespace SageLiveUnitTests
 
 		private static string[] LoadCredentials()
 		{
-			var reader = new StreamReader( File.OpenRead( @"D:\sagelive.csv" ) );
+			var reader = new StreamReader( File.OpenRead( @"..\..\Files\sageliveCredentials.csv" ) );
 			var line = reader.ReadLine();
-			var values = line.Split( ';' );
+			var values = line.Split( ',' );
 			return values;
 		}
 

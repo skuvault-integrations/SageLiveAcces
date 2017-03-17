@@ -22,6 +22,7 @@ namespace SageLiveAccess.Misc
 
 		private HttpWebRequest CreateSageLiveReAuthRequest( string refreshToken )
 		{
+			ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls; // comparable to modern browsers
 			var request = ( HttpWebRequest )WebRequest.Create( "https://login.salesforce.com/services/oauth2/token" );
 			var data = "grant_type=refresh_token&refresh_token={0}&client_id={1}&client_secret={2}".FormatWith( refreshToken, this._config._clientId, this._config._clientSecret );
 
