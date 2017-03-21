@@ -57,6 +57,7 @@
     <Compile Include="Helpers\CompanyHelper.cs" />
     <Compile Include="Helpers\CurrencyHelper.cs" />
     <Compile Include="Helpers\DocumentTypeHelper.cs" />
+    <Compile Include="Helpers\GlobalHelper.cs" />
     <Compile Include="ISageLiveAuthService.cs" />
     <Compile Include="ISageLiveFactory.cs" />
     <Compile Include="ISageLivePurchaseInvoiceSyncService.cs" />

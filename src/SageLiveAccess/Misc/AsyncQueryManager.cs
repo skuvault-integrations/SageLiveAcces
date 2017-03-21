@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Netco.ActionPolicyServices;
 using Netco.Extensions;
 using Netco.Monads;
+using SageLiveAccess.Helpers;
 using SageLiveAccess.Models.Auth;
 using SageLiveAccess.sforce;
 using Task = System.Threading.Tasks.Task;
@@ -120,6 +121,7 @@ namespace SageLiveAccess.Misc
         {
             return await this.RetryWrapper< SaveResult[] >( t =>
             {
+			GlobalHelper.SetSecurityProtocol();
                 this._binding.createAsync( objects, t );
             }, "Inserting to SOQL: {0}".FormatWith( objects.MakeString() ) );
         }
@@ -128,6 +130,7 @@ namespace SageLiveAccess.Misc
         {
             return await this.RetryWrapper< SaveResult[] >( t =>
             {
+			GlobalHelper.SetSecurityProtocol();
                 this._binding.updateAsync( objects, t );
             }, "Updating in SOQL: {0}".FormatWith( objects.MakeString() ) );
         }
@@ -136,6 +139,7 @@ namespace SageLiveAccess.Misc
         {
             await this.RetryWrapper< DeleteResult[] >( t =>
             {
+			GlobalHelper.SetSecurityProtocol();
                 this._binding.deleteAsync( ids, t );
             }, "Deleting from SOQL: {0}".FormatWith( ids.MakeString() ) );
         }
@@ -144,6 +148,7 @@ namespace SageLiveAccess.Misc
         {
 	        return await this._asyncPolicy.Get( async () =>
 	        {
+				GlobalHelper.SetSecurityProtocol();
 				SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Trying {0} with Salesforce SOAP API request {0}".FormatWith( info ) );
 				var indentifier = new TaskIdentifier<T>( this, new SemaphoreSlim( 0, 1 ) );
 				f.Invoke( indentifier );
@@ -168,6 +173,7 @@ namespace SageLiveAccess.Misc
 	        var soqlQuery = builder.Build();
 			return await this.RetryWrapper< QueryResult >( t =>
             {
+		    GlobalHelper.SetSecurityProtocol();
                 this._binding.queryAsync( soqlQuery, t );
             }, "Quering from SOQL: {0}".FormatWith( soqlQuery ) );
         }
@@ -177,6 +183,7 @@ namespace SageLiveAccess.Misc
 	        var query = builder.Build();
 			var result = await this.RetryWrapper< QueryResult >( t =>
             {
+			GlobalHelper.SetSecurityProtocol();
                 this._binding.queryAsync( query, t );
             }, "Quering single record from SOQL: {0}".FormatWith( query ) );
             if( result.records == null )
@@ -188,6 +195,7 @@ namespace SageLiveAccess.Misc
         {
 			return await this.RetryWrapper< QueryResult >( t =>
             {
+			GlobalHelper.SetSecurityProtocol();
                 this._binding.queryMoreAsync( query, t );
             }, "Quering more from SOQL: {0}".FormatWith( query ) );
         }

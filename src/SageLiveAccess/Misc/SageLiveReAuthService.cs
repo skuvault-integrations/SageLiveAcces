@@ -6,12 +6,13 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Netco.Extensions;
+using SageLiveAccess.Helpers;
 using SageLiveAccess.Models.Auth;
 using ServiceStack.Text;
 
 namespace SageLiveAccess.Misc
 {
-	internal class SageLiveReAuthService
+	internal class SageLiveReAuthService : MethodLogging
 	{
 		private readonly SageLiveFactoryConfig _config;
 
@@ -22,7 +23,7 @@ namespace SageLiveAccess.Misc
 
 		private HttpWebRequest CreateSageLiveReAuthRequest( string refreshToken )
 		{
-			ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls; // comparable to modern browsers
+			GlobalHelper.SetSecurityProtocol();
 			var request = ( HttpWebRequest )WebRequest.Create( "https://login.salesforce.com/services/oauth2/token" );
 			var data = "grant_type=refresh_token&refresh_token={0}&client_id={1}&client_secret={2}".FormatWith( refreshToken, this._config._clientId, this._config._clientSecret );
 
@@ -42,13 +43,16 @@ namespace SageLiveAccess.Misc
 
 		public async Task< string > GetRefreshedToken( string refreshToken )
 		{
-			var request = this.CreateSageLiveReAuthRequest( refreshToken );
-			var response = await request.GetResponseAsync();
-			using( var refreshTokenReponseStream = response.GetResponseStream() )
+			return await this.ParseExceptionAsync( "SageLiveReAuthService", true, async () =>
 			{
-				var refreshTokenResponse = JsonSerializer.DeserializeFromStream< SageLiveRefreshTokenResponse >( refreshTokenReponseStream );
-				return refreshTokenResponse.auth_token;
-			}
+				var request = this.CreateSageLiveReAuthRequest( refreshToken );
+				var response = await request.GetResponseAsync();
+				using( var refreshTokenReponseStream = response.GetResponseStream() )
+				{
+					var refreshTokenResponse = JsonSerializer.DeserializeFromStream< SageLiveRefreshTokenResponse >( refreshTokenReponseStream );
+					return refreshTokenResponse.auth_token;
+				}
+			} );
 		}
 	}
 }

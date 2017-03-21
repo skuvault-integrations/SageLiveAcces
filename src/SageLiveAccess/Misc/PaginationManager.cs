@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
+using SageLiveAccess.Helpers;
 using SageLiveAccess.sforce;
 using ServiceStack;
 
@@ -13,6 +15,7 @@ namespace SageLiveAccess.Misc
 
 		public PaginationManager( AsyncQueryManager asyncQueryManager )
 		{
+			GlobalHelper.SetSecurityProtocol();
 			this._asyncQueryManager = asyncQueryManager;
 		}
 
@@ -20,6 +23,7 @@ namespace SageLiveAccess.Misc
 
 		private async Task< List< string> > DoPartitioned( Func< sObject[], Task< SaveResult[] > > action, List<sObject> source, string info )
 		{
+			GlobalHelper.SetSecurityProtocol();
 			var chunks = source.Partition( 20 );
 			SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Partioning list of objects for {1}. Got {2} chunks.".FormatWith( source.MakeString(), info, chunks.Count() ) );
 			var results = new List<string>();
@@ -49,6 +53,7 @@ namespace SageLiveAccess.Misc
 
 		public async Task< List< T > > GetAll< T >( SoqlQueryBuilder soqlQuery ) where T : class
 		{
+			GlobalHelper.SetSecurityProtocol();
 			SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Processing query pagination for SOQL query: {0}".FormatWith( soqlQuery ) );
 			var result = new List< T >();
 			var qr = await this._asyncQueryManager.QueryAsync( soqlQuery );

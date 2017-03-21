@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SageLiveAccess;
 using SageLiveAccess.Misc;
@@ -46,6 +47,13 @@ namespace SageLiveUnitTests
 			var authUrl = authService.GetAuthUrl();
 			var token = "";
 			var authInfo = authService.AuthentifcateByCode( token );
+		}
+
+		[ TestMethod ]
+		public async Task GetLegislationInfo()
+		{
+			var authService = this._factory.CreateSageLiveSettingsService( _authInfo );
+			var legresult = await authService.GetLegislationInfo( CancellationToken.None );
 		}
 
 		[ TestMethod ]

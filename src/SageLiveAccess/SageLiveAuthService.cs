@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using SageLiveAccess.Helpers;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models.Auth;
 using ServiceStack;
@@ -27,7 +28,7 @@ namespace SageLiveAccess
 
 		private HttpWebRequest CreateSageLiveAuthRequest( string code )
 		{
-			ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls; // comparable to modern browsers
+			GlobalHelper.SetSecurityProtocol();
 			var request = ( HttpWebRequest )WebRequest.Create( "https://login.salesforce.com/services/oauth2/token" );
 			var data = "grant_type=authorization_code&code={0}&client_id={1}&client_secret={2}&redirect_uri={3}".FormatWith( code, _config._clientId,
 				_config._clientSecret, _config._redirectUri );
@@ -48,7 +49,7 @@ namespace SageLiveAccess
 
 		private HttpWebRequest CreateGetUserRequest( SageLiveAuthResponse response )
 		{
-			ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls; // comparable to modern browsers
+			GlobalHelper.SetSecurityProtocol();
 			var request = ( HttpWebRequest )WebRequest.Create( response.id );
 			request.Method = WebRequestMethods.Http.Get;
 			request.Headers.Add( HttpRequestHeader.Authorization, "Bearer {0}".FormatWith( response.access_token ) );
