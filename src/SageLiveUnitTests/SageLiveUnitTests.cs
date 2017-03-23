@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using LINQtoCSV;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Netco.Logging;
 using SageLiveAccess;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models;
@@ -16,28 +19,25 @@ namespace SageLiveUnitTests
 	{
 		private SageLiveFactory _factory;
 		private SageLiveAuthInfo _authInfo;
-
-		private static string[] LoadCredentials()
-		{
-			var reader = new StreamReader( File.OpenRead( @"..\..\Files\sageliveCredentials.csv" ) );
-			var line = reader.ReadLine();
-			var values = line.Split( ',' );
-			return values;
-		}
+		private ClientCredentials _clientCredentials;
 
 		[ TestInitialize ]
 		public void Setup()
 		{
-			var credentials = LoadCredentials();
+			var cc = new CsvContext();
+			var appCredentials = cc.Read< AppCredentials >( @"..\..\Files\sageliveAppCredentials.csv", new CsvFileDescription { FirstLineHasColumnNames = true } ).FirstOrDefault();
+			this._clientCredentials = cc.Read< ClientCredentials >( @"..\..\Files\sageliveClientCredentials.csv", new CsvFileDescription { FirstLineHasColumnNames = true } ).FirstOrDefault();
 
-			this._factory = new SageLiveFactory( credentials[ 0 ], credentials[ 1 ], credentials[ 2 ] );
-			this._authInfo = new SageLiveAuthInfo(
-				new SageLiveSessionId( credentials[ 3 ] ),
-				new SageLiveOrganizationId( credentials[ 4 ] ),
-				new SageLiveUserId( credentials[ 5 ] ),
-				new SageLiveInstanceUrl( credentials[ 6 ] ),
-				new SageLiveRefreshToken( credentials[ 7 ] )
-			);
+			if( appCredentials != null )
+				this._factory = new SageLiveFactory( appCredentials.ClientId, appCredentials.SecretId, appCredentials.RedirectUri );
+			if( this._clientCredentials != null )
+				this._authInfo = new SageLiveAuthInfo(
+					new SageLiveSessionId( this._clientCredentials.SessionId ),
+					new SageLiveOrganizationId( this._clientCredentials.OrganizationId ),
+					new SageLiveUserId( this._clientCredentials.UserId ),
+					new SageLiveInstanceUrl( this._clientCredentials.InstanceUrl ),
+					new SageLiveRefreshToken( this._clientCredentials.RefreshToken )
+				);
 		}
 
 		[ TestMethod ]
@@ -59,10 +59,11 @@ namespace SageLiveUnitTests
 		[ TestMethod ]
 		public void InvoiceGetTest()
 		{
-			var service = this._factory.CreateSageLiveSaleInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( "a1B580000006bM9EAI", "AnythingCompany" ), "USD" );
+			var service = this._factory.CreateSageLiveSaleInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( this._clientCredentials.LegislationId, this._clientCredentials.CompanyName ), "USD" );
 			var now = DateTime.UtcNow;
 
-			var x = service.GetSaleInvoices( now.AddHours( -12 ), now, CancellationToken.None ).Result;
+			var x = service.GetSaleInvoices( now.AddDays( -3 ), now, CancellationToken.None ).Result;
+
 			Assert.AreEqual( true, true );
 		}
 

@@ -101,7 +101,7 @@ namespace SageLiveAccess
 
 		public async Task PushSaleInvoices( IEnumerable< SaleInvoice > saleInvoices, string currecyCode, CancellationToken ct )
 		{
-			var invoiceDocumentTypeId = ( await this._documentTypeHelper.GetSaleInvoiceTypeId() ).Id;
+			var invoiceDocumentTypeId = ( await this._documentTypeHelper.GetSaleInvoiceTypeId() ).Value.Id;
 			var dimensionId = ( await this._documentTypeHelper.GetSaleInvoiceDimensionTypeId() ).Id;
 			await this.PushInvoices( saleInvoices, currecyCode, invoiceDocumentTypeId, dimensionId, ct );
 		}
