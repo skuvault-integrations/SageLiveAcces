@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Netco.Extensions;
 using Netco.Monads;
@@ -13,81 +14,49 @@ namespace SageLiveAccess.Helpers
 	internal class PresentAndAbsentInvoiceInfo
 	{
 		public readonly List< InvoiceBase > _invoicesToCreate;
-		public readonly List< KeyValuePair< InvoiceBase, string > > _invoicesToUpdate;
+		//public readonly List< KeyValuePair< InvoiceBase, string > > _invoicesToUpdate;
 
 		public PresentAndAbsentInvoiceInfo()
 		{
-			this._invoicesToUpdate = new List< KeyValuePair< InvoiceBase, string > >();
+			//this._invoicesToUpdate = new List< KeyValuePair< InvoiceBase, string > >();
 			this._invoicesToCreate = new List< InvoiceBase >();
 		}
 	}
 
-	internal class PushInvoiceHelper : MethodLogging
+	internal class PushInvoiceHelper: MethodLogging
 	{
 		private readonly AsyncQueryManager _asyncQueryManager;
-		private readonly PaginationManager _paginationManager;
 		private readonly SageLiveAuthInfo _authInfo;
-        private readonly SageLivePushInvoiceSettings _pushSettings;
-        private readonly CompanyHelper _companyHelper;
+		private readonly SageLivePushInvoiceSettings _pushSettings;
+		private readonly CompanyHelper _companyHelper;
 
 		private const string ServiceName = "PushInvoiceHelper";
 
-		public PushInvoiceHelper( AsyncQueryManager asyncQueryManager, PaginationManager paginationManager, SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings pushSettings )
+		public PushInvoiceHelper( AsyncQueryManager asyncQueryManager, SageLiveAuthInfo authInfo, SageLivePushInvoiceSettings pushSettings )
 		{
 			this._asyncQueryManager = asyncQueryManager;
-			this._paginationManager = paginationManager;
 			this._authInfo = authInfo;
-            this._companyHelper = new CompanyHelper( this._asyncQueryManager );
-            this._pushSettings = pushSettings;
+			this._companyHelper = new CompanyHelper( this._asyncQueryManager );
+			this._pushSettings = pushSettings;
 		}
-
-//		private async Task< string > GetAccountId( SaleInvoice saleInvoice )
-//		{
-//			var warnMsg = "Using default account Id for sale invoice #{0}".FormatWith( saleInvoice.UID );
-//
-//			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Getting account Id for sale invoice #{0}".FormatWith( saleInvoice.UID ) );
-//			if ( saleInvoice.ContactInfo == null || saleInvoice.ContactInfo.LastName == null )
-//			{
-//				SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), warnMsg );
-//                return this._pushSettings._invoiceAccountId;
-//			}
-//			var contact = await this._asyncQueryManager.QueryOneAsync< Contact >( "SELECT Id, AccountId FROM Contact WHERE Name LIKE '{0}'".FormatWith( saleInvoice.ContactInfo.LastName ) );
-//			if( !contact.HasValue )
-//			{
-//				SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), warnMsg );
-//				return this._pushSettings._invoiceAccountId;
-//            }
-//				
-//			return contact.Value.AccountId;
-//		}
-
-//		private async Task< Account > GetDefaultAccountId()
-//		{
-//			return ( await this._asyncQueryManager.QueryOneAsync< Account >( "SELECT Id FROM Account" ) ).Value;
-//		}
-//
-//		private async Task< s2cor__Sage_COR_Company__c > GetDefaultCompany()
-//		{
-//			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( "SELECT Id, Name, s2cor__Legislation__c, s2cor__Base_Currency__c FROM s2cor__Sage_COR_Company__c" ) ).Value;
-//		}
 
 		private bool AreRegionSettingsChanged( s2cor__Sage_COR_Company__c company, string currencyId )
 		{
 			return ( !company.s2cor__Legislation__c.Equals( this._pushSettings._legislationId ) || !company.s2cor__Base_Currency__c.Equals( currencyId ) );
 		}
 
-		private async Task< s2cor__Sage_COR_Company__c > GetCompanyId( InvoiceBase invoiceBase, string currencyId )
+		private async Task< s2cor__Sage_COR_Company__c > GetCompanyId( InvoiceBase invoiceBase, string currencyId, Mark mark, CancellationToken ct )
 		{
-			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Getting company Id for invoice #{0}".FormatWith( invoiceBase.UID ) );
+			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, mark, ServiceName ), "Getting company Id for invoice #{0}".FormatWith( invoiceBase.UID ) );
 
 			var companyInfo = new SageLiveCompanyModel
-		    {
-		        BaseCurrency = currencyId,
-		        LegislationId = this._pushSettings._legislationId,
-		        Name = ( invoiceBase is SaleInvoice ) ? this._pushSettings._companyName : invoiceBase.ContactInfo.Company
-		    };
+			{
+				BaseCurrency = currencyId,
+				LegislationId = this._pushSettings._legislationId,
+				Name = ( invoiceBase is SaleInvoice ) ? this._pushSettings._companyName : invoiceBase.ContactInfo.Company
+			};
 
-			var companyMaybe = await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__Legislation__c", "s2cor__Base_Currency__c" ).From( "s2cor__Sage_COR_Company__c" ).Where( "Name" ).IsEqualTo( this._pushSettings._companyName ) );
+			var companyMaybe = await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__Legislation__c", "s2cor__Base_Currency__c" ).From( "s2cor__Sage_COR_Company__c" ).Where( "Name" ).IsEqualTo( this._pushSettings._companyName ), mark, ct );
 			if( companyMaybe.HasValue )
 			{
 				if( this.AreRegionSettingsChanged( companyMaybe.Value, currencyId ) )
@@ -95,79 +64,82 @@ namespace SageLiveAccess.Helpers
 					var updatedCompany = companyMaybe.Value;
 					updatedCompany.s2cor__Legislation__c = this._pushSettings._legislationId;
 					updatedCompany.s2cor__Base_Currency__c = currencyId;
-					await this._asyncQueryManager.Update( new sObject[] { updatedCompany } );
+					await this._asyncQueryManager.Update( new sObject[] { updatedCompany }, mark, ct );
 					return updatedCompany;
 				}
 			}
 
-			return await this._companyHelper.GetOrCreateCompany( companyInfo );
+			return await this._companyHelper.GetOrCreateCompany( companyInfo, mark, ct );
 		}
 
-		public async Task< Maybe< s2cor__Sage_INV_Trade_Document__c > > GetInvoice( InvoiceBase invoice )
+		public async Task< Maybe< s2cor__Sage_INV_Trade_Document__c > > GetInvoice( InvoiceBase invoice, Mark mark, CancellationToken ct )
 		{
-			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_INV_Trade_Document__c >( SoqlQuery.Builder().Select( "Id" ).From( "s2cor__Sage_INV_Trade_Document__c" ).Where( "s2cor__UID__c" ).IsEqualTo( invoice.UID ) ) );
+			return ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_INV_Trade_Document__c >( SoqlQuery.Builder().Select( "Id" ).From( "s2cor__Sage_INV_Trade_Document__c" ).Where( "s2cor__UID__c" ).IsEqualTo( invoice.UID ), mark, ct ) );
 		}
 
-		public async Task< PresentAndAbsentInvoiceInfo > GetPresentAndAbsentInvoiceInfo( IEnumerable< InvoiceBase > saleInvoices )
+		public async Task< PresentAndAbsentInvoiceInfo > GetPresentAndAbsentInvoiceInfo( IEnumerable< InvoiceBase > saleInvoices, Mark mark, CancellationToken ct )
 		{
-			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Getting present and absent invoices for push selection..." );
+			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, mark, ServiceName ), "Getting present and absent invoices for push selection..." );
 			var result = new PresentAndAbsentInvoiceInfo();
 			foreach( var invoice in saleInvoices )
 			{
-				var dbEntry = await this.GetInvoice( invoice );
+				var dbEntry = await this.GetInvoice( invoice, mark, ct );
 				if( !dbEntry.HasValue )
 					result._invoicesToCreate.Add( invoice );
-				else
-					result._invoicesToUpdate.Add( new KeyValuePair< InvoiceBase, string >( invoice, dbEntry.Value.Id ) );
+				//else
+				//	result._invoicesToUpdate.Add( new KeyValuePair< InvoiceBase, string >( invoice, dbEntry.Value.Id ) );
 			}
 			return result;
 		}
 
-		public async Task< sObject > CreateInvoice( InvoiceBase invoiceModel, string invoiceTypeId, string currencyId, string dimensionId )
+		public async Task< sObject > CreateInvoice( InvoiceBase invoiceModel, string invoiceTypeId, string currencyId, string dimensionId, Mark mark, CancellationToken ct )
 		{
-			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, ServiceName ), "Creating invoice sObject for invoice #{0}".FormatWith( invoiceModel.UID ) );
-			var company = await this.GetCompanyId( invoiceModel, currencyId );
-			var invoice = new s2cor__Sage_INV_Trade_Document__c();
-			invoice.s2cor__Description__c = invoiceModel.Description ?? "";
-			invoice.s2cor__UID__c = invoiceModel.UID;
-			invoice.s2cor__Company__c = company.Id;
-			invoice.s2cor__Currency__c = currencyId; //company.s2cor__Base_Currency__c; 
-			invoice.s2cor__Status__c = "Submitted";
-			invoice.s2cor__Paid_Amount__c = invoiceModel.Total;
-			invoice.s2cor__Date__c = invoiceModel.CreationDate; 
-			invoice.OwnerId = this._authInfo._userId._userId;
-			invoice.s2cor__Account__c = ( await this._companyHelper.GetOrCreateAccount( invoiceModel ) ).Id;
-			invoice.s2cor__Approval_Status__c = "Approved";
+			SageLiveLogger.Debug( this.GetLogPrefix( this._authInfo, mark, ServiceName ), "Creating invoice sObject for invoice #{0}".FormatWith( invoiceModel.UID ) );
+			var company = await this.GetCompanyId( invoiceModel, currencyId, mark, ct );
+			var invoice = new s2cor__Sage_INV_Trade_Document__c
+			{
+				s2cor__Description__c = invoiceModel.Description ?? "",
+				s2cor__UID__c = invoiceModel.UID,
+				s2cor__Company__c = company.Id,
+				s2cor__Currency__c = currencyId, //company.s2cor__Base_Currency__c; 
+				s2cor__Status__c = "Submitted",
+				s2cor__Paid_Amount__c = invoiceModel.Total,
+				s2cor__Date__c = invoiceModel.CreationDate,
+				OwnerId = this._authInfo._userId._userId,
+				s2cor__Account__c = ( await this._companyHelper.GetOrCreateAccount( invoiceModel, mark, ct ) ).Id,
+				s2cor__Approval_Status__c = "Approved"
+			};
 
-			var documentNumber = new s2cor__Sage_ACC_Tag__c();
-			documentNumber.s2cor__Company__c = company.Id;
-			documentNumber.s2cor__Base_Credit__c = ( invoiceModel is SaleInvoice ) ? invoiceModel.Total : 0;
-			documentNumber.s2cor__Base_Credit__cSpecified = true;
-			documentNumber.s2cor__Dimension__c = dimensionId;
-			documentNumber.Name = invoiceModel.UID;
+			var documentNumber = new s2cor__Sage_ACC_Tag__c
+			{
+				s2cor__Company__c = company.Id,
+				s2cor__Base_Credit__c = ( invoiceModel is SaleInvoice ) ? invoiceModel.Total : 0,
+				s2cor__Base_Credit__cSpecified = true,
+				s2cor__Dimension__c = dimensionId,
+				Name = invoiceModel.UID
+			};
 
-			var documentNumberId = await this._asyncQueryManager.Insert( new[] { documentNumber } );
+			var documentNumberId = await this._asyncQueryManager.Insert( new sObject[] { documentNumber }, mark, ct );
 			invoice.s2cor__Document_Number_Tag__c = documentNumberId.First().id;
 
+			invoice.s2cor__Legislation__c = /*this._pushSettings._legislationId;*/ company.s2cor__Legislation__c;
+			invoice.s2cor__Trade_Document_Type__c = invoiceTypeId;
+			var contactMaybe = await this._companyHelper.GetOrCreateContact( invoiceModel, invoice.s2cor__Account__c, mark, ct );
 
-			invoice.s2cor__Legislation__c = /*this._pushSettings._legislationId;*/ company.s2cor__Legislation__c; 
-			invoice.s2cor__Trade_Document_Type__c = invoiceTypeId; 
-			var contactMaybe = await this._companyHelper.GetOrCreateContact( invoiceModel, invoice.s2cor__Account__c );
-
-			if ( invoiceModel is SaleInvoice && contactMaybe.HasValue )
+			if( invoiceModel is SaleInvoice && contactMaybe.HasValue )
 			{
 				invoice.s2cor__Contact__c = contactMaybe.Value.Id;
 			}
-			
+
 			return invoice;
 		}
 
-		public async Task< List< sObject > > CreateSaleInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId, string dimensionId )
+		public async Task< List< sObject > > CreateSaleInvoices( IEnumerable< InvoiceBase > saleInvoices, string salesInvoiceDocumentTypeId, string currencyId, string dimensionId, Mark mark, CancellationToken ct )
 		{
 			var invoices = new List< sObject >();
-			foreach ( var saleInvoice in saleInvoices )
+			foreach( var saleInvoice in saleInvoices )
 			{
-				invoices.Add( await this.CreateInvoice( saleInvoice, salesInvoiceDocumentTypeId, currencyId, dimensionId ) );
+				invoices.Add( await this.CreateInvoice( saleInvoice, salesInvoiceDocumentTypeId, currencyId, dimensionId, mark, ct ) );
 			}
 
 			return invoices;

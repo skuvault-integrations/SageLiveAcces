@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Netco.ActionPolicyServices;
 using Netco.Extensions;
 using Netco.Monads;
 using SageLiveAccess.Helpers;
@@ -15,274 +11,166 @@ using Task = System.Threading.Tasks.Task;
 
 namespace SageLiveAccess.Misc
 {
-	internal class SessionExpiredException : Exception
-	{
-		public SessionExpiredException()
-		{
-		}
-
-		public SessionExpiredException( string message )
-			: base( message )
-		{
-		}
-
-		public SessionExpiredException( string message, Exception inner )
-			: base( message, inner )
-		{
-		}
-	}
-
 	internal class AsyncQueryManager: MethodLogging
 	{
-		public const int MaxRetries = 1;
-        public Func< int, Task > delay = retryNum => Task.Delay( ( 1 + retryNum ) * 5000 );
-
-        private readonly SforceService _binding;
-        private readonly string _refreshToken;
-        private readonly SageLiveReAuthService _reAuthService;
-        private readonly Guid _instanceId = Guid.NewGuid();
-
-		private readonly ActionPolicyAsync _asyncPolicy;
-
+		private readonly SforceService _binding;
+		private readonly string _refreshToken;
+		private readonly SageLiveReAuthService _reAuthService;
+		private readonly Guid _instanceId = Guid.NewGuid();
 		private const string ServiceName = "AsyncQueryManager";
 
-        internal class TaskResult< T >
-        {
-            public readonly bool _success;
-            public readonly Exception _exception;
-            public readonly T _result;
+		public AsyncQueryManager( SforceService binding, SageLiveFactoryConfig config, string refreshToken )
+		{
+			this._binding = binding;
+			this._binding.queryCompleted += this.Binding_queryCompleted;
+			this._binding.queryMoreCompleted += this.Binding_queryMoreCompleted;
+			this._binding.createCompleted += this.BindingOnCreateCompleted;
+			this._binding.updateCompleted += this.BindingOnUpdateCompleted;
+			this._binding.deleteCompleted += this.BindingOnDeleteCompleted;
 
-            public TaskResult( bool success, Exception ex, T result )
-            {
-                this._success = success;
-                this._exception = ex;
-                this._result = result;
-            }
-        }
-
-        internal class TaskIdentifier< T >
-        {
-            public readonly Guid _taskGUID;
-            public readonly SemaphoreSlim _callbackMonitor;
-            public TaskResult< T > result;
-
-            public TaskIdentifier( AsyncQueryManager manager, SemaphoreSlim callbackMonitor )
-            {
-                this._taskGUID = manager._instanceId;
-                this._callbackMonitor = callbackMonitor;
-            }
-        }
-
-        public AsyncQueryManager( SforceService binding, SageLiveFactoryConfig config, string refreshToken )
-        {
-            this._binding = binding;
-            this._binding.queryCompleted += this.Binding_queryCompleted;
-            this._binding.queryMoreCompleted += this.Binding_queryMoreCompleted;
-            this._binding.createCompleted += this.BindingOnCreateCompleted;
-            this._binding.updateCompleted += this.BindingOnUpdateCompleted;
-            this._binding.deleteCompleted += this.BindingOnDeleteCompleted;
-
-            this._reAuthService = new SageLiveReAuthService( config );
-            this._refreshToken = refreshToken;
-
-			this._asyncPolicy =
-					ActionPolicyAsync.Handle<Exception>().RetryAsync( MaxRetries, async ( ex, i ) =>
-					{
-						SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), string.Format( "Retrying SOAP API request for {0} time, cause: {1}", i, string.Format( "{0} : {1}", ex.Message, ex.StackTrace ) ) );
-						if ( ex is SessionExpiredException )
-						{
-							await this.RefreshTokenIfNeeded();
-						}
-						else await this.delay( i );
-					} );
+			this._reAuthService = new SageLiveReAuthService( config );
+			this._refreshToken = refreshToken;
 		}
 
-		private bool IsSessionExpired< T >( TaskResult< T > t )
+		private async Task< T > RetryWrapper< T >( Action< TaskIdentifier< T > > f, string info, Mark mark, CancellationToken ct )
 		{
-			if( !( t._exception is System.Web.Services.Protocols.SoapException ) )
-				return false;
-			var soapException = ( System.Web.Services.Protocols.SoapException )t._exception;
-			if( soapException.Code.Name != "INVALID_SESSION_ID" )
-				return false;
+			return await ActionPolicies.GetAsyncQueryManagerActionPolicy( this, this.GetLogPrefix( null, mark, ServiceName ), info, mark ).Get( async () =>
+			{
+				SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Trying with Salesforce SOAP API request {0}".FormatWith( info ) );
+				var indentifier = new TaskIdentifier< T >( this._instanceId, new SemaphoreSlim( 0, 1 ), mark );
+				SecurityHelper.SetSecurityProtocol();
+				f.Invoke( indentifier );
+				await indentifier.CallbackMonitor.WaitAsync( ct );
+				if( indentifier.Result.IsSuccess )
+				{
+					SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Salesforce SOAP API request {0} succeeded".FormatWith( info ) );
+					return indentifier.Result.Result;
+				}
+				if( IsSessionExpired( indentifier.Result.Exception ) )
+				{
+					throw new SessionExpiredException( "Your session has expired and needs to be refreshed", indentifier.Result.Exception );
+				}
 
+				throw new AggregateException( "Error occured while trying to execute SOAP API request {0}".FormatWith( info ), new List< Exception > { indentifier.Result.Exception } );
+			} );
+		}
+
+		#region Queries
+		public async Task< SaveResult[] > Insert( sObject[] objects, Mark mark, CancellationToken ct )
+		{
+			return await this.RetryWrapper< SaveResult[] >( t =>
+			{
+				this._binding.createAsync( objects, t );
+			}, "Inserting to SOQL: {0}".FormatWith( objects.MakeString() ), mark, ct );
+		}
+
+		public async Task< SaveResult[] > Update( sObject[] objects, Mark mark, CancellationToken ct )
+		{
+			return await this.RetryWrapper< SaveResult[] >( t =>
+			{
+				this._binding.updateAsync( objects, t );
+			}, "Updating in SOQL: {0}".FormatWith( objects.MakeString() ), mark, ct );
+		}
+
+		public async Task Delete( string[] ids, Mark mark, CancellationToken ct )
+		{
+			await this.RetryWrapper< DeleteResult[] >( t =>
+			{
+				this._binding.deleteAsync( ids, t );
+			}, "Deleting from SOQL: {0}".FormatWith( ids.MakeString() ), mark, ct );
+		}
+
+		public async Task< QueryResult > QueryAsync( SoqlQueryBuilder builder, Mark mark, CancellationToken ct )
+		{
+			var soqlQuery = builder.Build();
+			return await this.RetryWrapper< QueryResult >( t =>
+			{
+				this._binding.queryAsync( soqlQuery, t );
+			}, "Quering from SOQL: {0}".FormatWith( soqlQuery ), mark, ct );
+		}
+
+		public async Task< Maybe< T > > QueryOneAsync< T >( SoqlQueryBuilder builder, Mark mark, CancellationToken ct ) where T : class
+		{
+			var query = builder.Build();
+			var result = await this.RetryWrapper< QueryResult >( t =>
+			{
+				this._binding.queryAsync( query, t );
+			}, "Quering single record from SOQL: {0}".FormatWith( query ), mark, ct );
+			if( result.records == null )
+				return Maybe< T >.Empty;
+			return result.records.Length > 0 ? result.records[ 0 ] as T : Maybe< T >.Empty;
+		}
+
+		public async Task< QueryResult > QueryMoreAsync( string query, Mark mark, CancellationToken ct )
+		{
+			return await this.RetryWrapper< QueryResult >( t =>
+			{
+				this._binding.queryMoreAsync( query, t );
+			}, "Quering more from SOQL: {0}".FormatWith( query ), mark, ct );
+		}
+		#endregion
+
+		#region Events
+		private void Binding_queryCompleted( object sender, queryCompletedEventArgs e )
+		{
+			this.BindingCommandCompleted( e.UserState, e.Error, e.Error == null ? e.Result : null, "Query completed callback executing." );
+		}
+
+		private void Binding_queryMoreCompleted( object sender, queryMoreCompletedEventArgs e )
+		{
+			this.BindingCommandCompleted( e.UserState, e.Error, e.Error == null ? e.Result : null, "QueryMore completed callback executing." );
+		}
+
+		private void BindingOnCreateCompleted( object sender, createCompletedEventArgs e )
+		{
+			this.BindingCommandCompleted( e.UserState, e.Error, e.Error == null ? e.Result : null, "Insert completed callback executing." );
+		}
+
+		private void BindingOnUpdateCompleted( object sender, updateCompletedEventArgs e )
+		{
+			this.BindingCommandCompleted( e.UserState, e.Error, e.Error == null ? e.Result : null, "Update completed callback executing." );
+		}
+
+		private void BindingOnDeleteCompleted( object sender, deleteCompletedEventArgs e )
+		{
+			this.BindingCommandCompleted( e.UserState, e.Error, e.Error == null ? e.Result : null, "Delete completed callback executing." );
+		}
+
+		private void BindingCommandCompleted< T >( object userState, Exception error, T commandResult, string message ) where T : class
+		{
+			if( !( userState is TaskIdentifier< T > ) || !( ( TaskIdentifier< T > )userState ).TaskGUID.Equals( this._instanceId ) )
+				return;
+
+			var taskIdentifier = ( TaskIdentifier< T > )userState;
+			var result = new TaskResult< T >(
+				error == null,
+				error,
+				error == null ? commandResult : null
+			);
+
+			SageLiveLogger.Debug( this.GetLogPrefix( null, taskIdentifier.Mark, ServiceName ), message + " Success = {0}".FormatWith( error == null ) );
+			taskIdentifier.Result = result;
+			taskIdentifier.CallbackMonitor.Release();
+		}
+		#endregion
+
+		#region Session
+		private static bool IsSessionExpired( Exception exception )
+		{
+			if( !( exception is System.Web.Services.Protocols.SoapException ) )
+				return false;
+			var soapException = ( System.Web.Services.Protocols.SoapException )exception;
+			return soapException.Code.Name == "INVALID_SESSION_ID";
+		}
+
+		internal async Task< bool > RefreshTokenIfNeeded( Mark mark )
+		{
+			SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Session token expired. Refreshing..." );
+
+			var newSessionId = await this._reAuthService.GetRefreshedToken( this._refreshToken, mark );
+			this._binding.SessionHeaderValue.sessionId = newSessionId;
 			return true;
 		}
-
-		private async Task< bool > RefreshTokenIfNeeded()
-        {
-            SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Session token expired. Refreshing..." );
-
-            var newSessionId = await this._reAuthService.GetRefreshedToken( this._refreshToken );
-            this._binding.SessionHeaderValue.sessionId = newSessionId;
-            return true;
-        }
-
-        public async Task< SaveResult[] > Insert( sObject[] objects )
-        {
-            return await this.RetryWrapper< SaveResult[] >( t =>
-            {
-			GlobalHelper.SetSecurityProtocol();
-                this._binding.createAsync( objects, t );
-            }, "Inserting to SOQL: {0}".FormatWith( objects.MakeString() ) );
-        }
-
-        public async Task< SaveResult[] > Update( sObject[] objects )
-        {
-            return await this.RetryWrapper< SaveResult[] >( t =>
-            {
-			GlobalHelper.SetSecurityProtocol();
-                this._binding.updateAsync( objects, t );
-            }, "Updating in SOQL: {0}".FormatWith( objects.MakeString() ) );
-        }
-
-        public async Task Delete( string[] ids )
-        {
-            await this.RetryWrapper< DeleteResult[] >( t =>
-            {
-			GlobalHelper.SetSecurityProtocol();
-                this._binding.deleteAsync( ids, t );
-            }, "Deleting from SOQL: {0}".FormatWith( ids.MakeString() ) );
-        }
-
-        public async Task< T > RetryWrapper< T >( Action< TaskIdentifier< T > > f, string info )
-        {
-	        return await this._asyncPolicy.Get( async () =>
-	        {
-				GlobalHelper.SetSecurityProtocol();
-				SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Trying {0} with Salesforce SOAP API request {0}".FormatWith( info ) );
-				var indentifier = new TaskIdentifier<T>( this, new SemaphoreSlim( 0, 1 ) );
-				f.Invoke( indentifier );
-
-				await indentifier._callbackMonitor.WaitAsync();
-				if ( indentifier.result._success )
-				{
-					SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Salesforce SOAP API request {0} succeeded".FormatWith( info ) );
-					return indentifier.result._result;
-				}
-				if ( this.IsSessionExpired( indentifier.result ) )
-				{
-					throw new SessionExpiredException( "Your session has expired and needs to be refreshed", indentifier.result._exception );
-				}
-
-				throw new AggregateException( "Error occured while trying to execute SOAP API request {0}".FormatWith( info ), new List< Exception > { indentifier.result._exception } );
-			} );
-        }
-
-        public async Task< QueryResult > QueryAsync( SoqlQueryBuilder builder )
-        {
-	        var soqlQuery = builder.Build();
-			return await this.RetryWrapper< QueryResult >( t =>
-            {
-		    GlobalHelper.SetSecurityProtocol();
-                this._binding.queryAsync( soqlQuery, t );
-            }, "Quering from SOQL: {0}".FormatWith( soqlQuery ) );
-        }
-
-        public async Task< Maybe< T > > QueryOneAsync< T >( SoqlQueryBuilder builder ) where T : class
-        {
-	        var query = builder.Build();
-			var result = await this.RetryWrapper< QueryResult >( t =>
-            {
-			GlobalHelper.SetSecurityProtocol();
-                this._binding.queryAsync( query, t );
-            }, "Quering single record from SOQL: {0}".FormatWith( query ) );
-            if( result.records == null )
-                return Maybe< T >.Empty;
-            return result.records.Length > 0 ? result.records[ 0 ] as T : Maybe< T >.Empty;
-        }
-
-        public async Task< QueryResult > QueryMoreAsync( string query )
-        {
-			return await this.RetryWrapper< QueryResult >( t =>
-            {
-			GlobalHelper.SetSecurityProtocol();
-                this._binding.queryMoreAsync( query, t );
-            }, "Quering more from SOQL: {0}".FormatWith( query ) );
-        }
-
-        void Binding_queryCompleted( object sender, queryCompletedEventArgs e )
-        {
-            if( !( e.UserState is TaskIdentifier< QueryResult > ) || !( ( TaskIdentifier< QueryResult > )e.UserState )._taskGUID.Equals( this._instanceId ) )
-                return;
-
-            var taskIdentifier = ( TaskIdentifier< QueryResult > )e.UserState;
-            var result = new TaskResult< QueryResult >(
-                e.Error == null,
-                e.Error,
-                e.Error == null ? e.Result : null
-                );
-
-            SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Query completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
-            taskIdentifier.result = result;
-            taskIdentifier._callbackMonitor.Release();
-        }
-
-        void Binding_queryMoreCompleted( object sender, queryMoreCompletedEventArgs e )
-        {
-            if( !( e.UserState is TaskIdentifier< QueryResult > ) || !( ( TaskIdentifier< QueryResult > )e.UserState )._taskGUID.Equals( this._instanceId ) )
-                return;
-
-            var taskIdentifier = ( TaskIdentifier< QueryResult > )e.UserState;
-            var result = new TaskResult< QueryResult >(
-                e.Error == null,
-                e.Error,
-                e.Error == null ? e.Result : null
-                );
-
-            SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "QueryMore completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
-            taskIdentifier.result = result;
-            taskIdentifier._callbackMonitor.Release();
-        }
-
-        private void BindingOnCreateCompleted( object sender, createCompletedEventArgs e )
-        {
-            if( !( e.UserState is TaskIdentifier< SaveResult[] > ) || !( ( TaskIdentifier< SaveResult[] > )e.UserState )._taskGUID.Equals( this._instanceId ) )
-                return;
-
-            var taskIdentifier = ( TaskIdentifier< SaveResult[] > )e.UserState;
-            var result = new TaskResult< SaveResult[] >(
-                e.Error == null,
-                e.Error,
-                e.Error == null ? e.Result : null
-                );
-
-            SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Insert completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
-            taskIdentifier.result = result;
-            taskIdentifier._callbackMonitor.Release();
-        }
-
-        private void BindingOnUpdateCompleted( object sender, updateCompletedEventArgs e )
-        {
-            if( !( e.UserState is TaskIdentifier< SaveResult[] > ) || !( ( TaskIdentifier< SaveResult[] > )e.UserState )._taskGUID.Equals( this._instanceId ) )
-                return;
-
-            var taskIdentifier = ( TaskIdentifier< SaveResult[] > )e.UserState;
-            var result = new TaskResult< SaveResult[] >(
-                e.Error == null,
-                e.Error,
-                e.Error == null ? e.Result : null
-                );
-
-            SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Update completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
-            taskIdentifier.result = result;
-            taskIdentifier._callbackMonitor.Release();
-        }
-
-        private void BindingOnDeleteCompleted( object sender, deleteCompletedEventArgs e )
-        {
-            if( !( e.UserState is TaskIdentifier< DeleteResult[] > ) || !( ( TaskIdentifier< DeleteResult[] > )e.UserState )._taskGUID.Equals( this._instanceId ) )
-                return;
-
-            var taskIdentifier = ( TaskIdentifier< DeleteResult[] > )e.UserState;
-            var result = new TaskResult< DeleteResult[] >(
-                e.Error == null,
-                e.Error,
-                e.Error == null ? e.Result : null
-                );
-
-            SageLiveLogger.Debug( this.GetLogPrefix( null, ServiceName ), "Update completed callback executing. Success = {0}".FormatWith( e.Error == null ) );
-            taskIdentifier.result = result;
-            taskIdentifier._callbackMonitor.Release();
-        }
-    }
+		#endregion
+	}
 }

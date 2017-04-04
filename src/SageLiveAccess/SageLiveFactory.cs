@@ -1,10 +1,9 @@
-﻿using System;
-using SageLiveAccess.Models;
+﻿using SageLiveAccess.Models;
 using SageLiveAccess.Models.Auth;
 
 namespace SageLiveAccess
 {
-	public class SageLiveFactory : ISageLiveFactory
+	public class SageLiveFactory: ISageLiveFactory
 	{
 		private readonly SageLiveFactoryConfig _config;
 
@@ -28,9 +27,9 @@ namespace SageLiveAccess
 			return new SageLiveAuthService( this._config );
 		}
 
-	    public ISageLiveSettingServicecs CreateSageLiveSettingsService( SageLiveAuthInfo authInfo )
-	    {
-	        return new SageLiveSettingsService( authInfo, this._config );
-	    }
+		public ISageLiveSettingServicecs CreateSageLiveSettingsService( SageLiveAuthInfo authInfo )
+		{
+			return new SageLiveSettingsService( authInfo, this._config );
+		}
 	}
 }

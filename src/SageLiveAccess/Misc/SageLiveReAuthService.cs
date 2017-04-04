@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.IO;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using Netco.Extensions;
 using SageLiveAccess.Helpers;
@@ -12,7 +8,7 @@ using ServiceStack.Text;
 
 namespace SageLiveAccess.Misc
 {
-	internal class SageLiveReAuthService : MethodLogging
+	internal class SageLiveReAuthService: MethodLogging
 	{
 		private readonly SageLiveFactoryConfig _config;
 
@@ -23,8 +19,7 @@ namespace SageLiveAccess.Misc
 
 		private HttpWebRequest CreateSageLiveReAuthRequest( string refreshToken )
 		{
-			GlobalHelper.SetSecurityProtocol();
-			var request = ( HttpWebRequest )WebRequest.Create( "https://login.salesforce.com/services/oauth2/token" );
+			var request = SecurityHelper.CreateWebRequest( "https://login.salesforce.com/services/oauth2/token" );
 			var data = "grant_type=refresh_token&refresh_token={0}&client_id={1}&client_secret={2}".FormatWith( refreshToken, this._config._clientId, this._config._clientSecret );
 
 			request.ContentType = "application/x-www-form-urlencoded";
@@ -41,9 +36,9 @@ namespace SageLiveAccess.Misc
 			return request;
 		}
 
-		public async Task< string > GetRefreshedToken( string refreshToken )
+		public async Task< string > GetRefreshedToken( string refreshToken, Mark mark )
 		{
-			return await this.ParseExceptionAsync( "SageLiveReAuthService", true, async () =>
+			return await this.ParseExceptionAsync( mark, "SageLiveReAuthService", true, async () =>
 			{
 				var request = this.CreateSageLiveReAuthRequest( refreshToken );
 				var response = await request.GetResponseAsync();

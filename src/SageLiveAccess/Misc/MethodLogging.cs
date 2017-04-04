@@ -10,12 +10,12 @@ namespace SageLiveAccess.Misc
 {
 	public class MethodLogging
 	{
-		protected string GetLogPrefix( SageLiveAuthInfo config, string addtionalInfo, [ CallerMemberName ] string methodName = "" )
+		protected string GetLogPrefix( SageLiveAuthInfo config, Mark mark, string addtionalInfo, [ CallerMemberName ] string methodName = "" )
 		{
-			return "{0} ({1}), credentials: {2}".FormatWith( methodName, addtionalInfo, config != null ? config._userId._userId : "Unknown" );
+			return "Mark:{0}. {1} ({2}), credentials: {3}".FormatWith( mark, methodName, addtionalInfo, config != null ? config._userId._userId : "Unknown" );
 		}
 
-		protected T ParseException< T >( string serviceName, bool isThrowException, Func< T > body )
+		protected T ParseException< T >( Mark mark, string serviceName, bool isThrowException, Func< T > body )
 		{
 			try
 			{
@@ -23,7 +23,7 @@ namespace SageLiveAccess.Misc
 			}
 			catch( WebException ex )
 			{
-				var exNew = this.HandleException( ex, serviceName );
+				var exNew = this.HandleException( ex, mark, serviceName );
 				if( isThrowException )
 					throw exNew;
 				else
@@ -31,7 +31,7 @@ namespace SageLiveAccess.Misc
 			}
 		}
 
-		protected async Task< T > ParseExceptionAsync< T >( string serviceName, bool isThrowException, Func< Task< T > > body )
+		protected async Task< T > ParseExceptionAsync< T >( Mark mark, string serviceName, bool isThrowException, Func< Task< T > > body )
 		{
 			try
 			{
@@ -39,7 +39,7 @@ namespace SageLiveAccess.Misc
 			}
 			catch( WebException ex )
 			{
-				var exNew = this.HandleException( ex, serviceName );
+				var exNew = this.HandleException( ex, mark, serviceName );
 				if( isThrowException )
 					throw exNew;
 				else
@@ -47,11 +47,11 @@ namespace SageLiveAccess.Misc
 			}
 		}
 
-		private WebException HandleException( WebException ex, string serviceName )
+		private WebException HandleException( WebException ex, Mark mark, string serviceName )
 		{
 			if( ex.Response == null || ex.Status != WebExceptionStatus.ProtocolError || ex.Response.ContentType == null )
 			{
-				SageLiveLogger.Error( ex, this.GetLogPrefix( null, serviceName ), "" );
+				SageLiveLogger.Error( ex, this.GetLogPrefix( null, mark, serviceName ), "" );
 				return ex;
 			}
 
@@ -61,7 +61,7 @@ namespace SageLiveAccess.Misc
 			using( var reader = new StreamReader( stream ) )
 			{
 				var jsonResponse = reader.ReadToEnd();
-				SageLiveLogger.Error( ex, this.GetLogPrefix( null, serviceName ), jsonResponse );
+				SageLiveLogger.Error( ex, this.GetLogPrefix( null, mark, serviceName ), jsonResponse );
 				return ex;
 			}
 		}

@@ -57,21 +57,26 @@
     <Compile Include="Helpers\CompanyHelper.cs" />
     <Compile Include="Helpers\CurrencyHelper.cs" />
     <Compile Include="Helpers\DocumentTypeHelper.cs" />
-    <Compile Include="Helpers\GlobalHelper.cs" />
+    <Compile Include="Helpers\SecurityHelper.cs" />
     <Compile Include="ISageLiveAuthService.cs" />
     <Compile Include="ISageLiveFactory.cs" />
     <Compile Include="ISageLivePurchaseInvoiceSyncService.cs" />
     <Compile Include="ISageLiveSaleInvoiceSyncService.cs" />
     <Compile Include="ISageLiveSettingServicecs.cs" />
+    <Compile Include="Misc\ActionPolicies.cs" />
     <Compile Include="Misc\AsyncQueryManager.cs" />
     <Compile Include="Misc\Conventions.cs" />
     <Compile Include="Misc\ListExtensions.cs" />
+    <Compile Include="Misc\Mark.cs" />
     <Compile Include="Misc\MethodLogging.cs" />
     <Compile Include="Misc\PaginationManager.cs" />
     <Compile Include="Misc\SageLiveLogger.cs" />
     <Compile Include="Misc\SageLiveReAuthService.cs" />
+    <Compile Include="Misc\SessionExpiredException.cs" />
     <Compile Include="Misc\SObjectExtensions.cs" />
     <Compile Include="Misc\SoqlQueryBuilder.cs" />
+    <Compile Include="Misc\TaskIdentifier.cs" />
+    <Compile Include="Misc\TaskResult.cs" />
     <Compile Include="Models\Auth\SageLiveRefreshToken.cs" />
     <Compile Include="Models\Auth\SageLiveRefreshTokenResponse.cs" />
     <Compile Include="Models\PurchaseInvoice.cs" />
@@ -80,7 +85,7 @@
     <Compile Include="Models\SageLiveLegislationInfo.cs" />
     <Compile Include="Models\SageLivePushInvoiceSettings.cs" />
     <Compile Include="Models\SaleInvoice.cs" />
-    <Compile Include="PullInvoicesService.cs" />
+    <Compile Include="Services\PullInvoicesService.cs" />
     <Compile Include="Misc\SageLiveModelDescriber.cs" />
     <Compile Include="Misc\SaleForceConnectionCreator.cs" />
     <Compile Include="Models\AddressInfo.cs" />
@@ -107,7 +112,7 @@
     </Compile>
     <Compile Include="Helpers\PushInvoiceHelper.cs" />
     <Compile Include="Helpers\PushInvoiceItemHelper.cs" />
-    <Compile Include="PushInvoiceService.cs" />
+    <Compile Include="Services\PushInvoiceService.cs" />
     <Compile Include="SageLiveAuthService.cs" />
     <Compile Include="SageLiveFactory.cs" />
     <Compile Include="SageLivePurchaseInvoiceSyncService.cs" />
@@ -295,9 +300,7 @@
       <CachedSettingsPropName>SageLiveAccess_sforce_SforceService</CachedSettingsPropName>
     </WebReferenceUrl>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Services\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
