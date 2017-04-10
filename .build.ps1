@@ -22,7 +22,19 @@ $src_dir = "$BuildRoot\src"
 $solution_file = "$src_dir\$($project_name).sln"
 	
 # Use MSBuild.
-use Framework\v4.0.30319 MSBuild
+#use Framework\v4.0.30319 MSBuild
+
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\15.0") 
+{ 
+    Write-Host "Found ToolsVersions 15"
+    Set-Alias MSBuild (Join-Path -Path (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\15.0").MSBuildToolsPath -ChildPath "MSBuild.exe")
+} 
+elseIf (Test-Path "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\14.0") 
+{ 
+    Write-Host "Found ToolsVersions 14"
+    Set-Alias MSBuild (Join-Path -Path (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\14.0").MSBuildToolsPath -ChildPath "MSBuild.exe")
+}
+
 
 task Clean { 
 	exec { MSBuild "$solution_file" /t:Clean /p:Configuration=Release /v:quiet } 

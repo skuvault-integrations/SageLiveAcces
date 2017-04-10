@@ -1,27 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LINQtoCSV;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Netco.Logging;
+using NUnit.Framework;
 using SageLiveAccess;
 using SageLiveAccess.Misc;
 using SageLiveAccess.Models;
 using SageLiveAccess.Models.Auth;
+using Assert = NUnit.Framework.Assert;
 
 namespace SageLiveUnitTests
 {
-	[ TestClass ]
-	public class SageLiveUnitTest
+	public class SageLiveUnitTests
 	{
 		private SageLiveFactory _factory;
 		private SageLiveAuthInfo _authInfo;
 		private ClientCredentials _clientCredentials;
 
-		[ TestInitialize ]
+		[ SetUp ]
 		public void Setup()
 		{
 			var cc = new CsvContext();
@@ -40,7 +38,7 @@ namespace SageLiveUnitTests
 				);
 		}
 
-		[ TestMethod ]
+		[ Test ]
 		public void AuthentifcateByCodeTest()
 		{
 			var authService = this._factory.CreateSageLiveAuthService();
@@ -49,14 +47,15 @@ namespace SageLiveUnitTests
 			var authInfo = authService.AuthentifcateByCode( token );
 		}
 
-		[ TestMethod ]
+		[ Test ]
 		public async Task GetLegislationInfo()
 		{
-			var authService = this._factory.CreateSageLiveSettingsService( _authInfo );
+			var authService = this._factory.CreateSageLiveSettingsService( this._authInfo );
 			var legresult = await authService.GetLegislationInfo( CancellationToken.None );
+			Assert.IsNotEmpty( legresult.legislations );
 		}
 
-		[ TestMethod ]
+		[ Test ]
 		public void InvoiceGetTest()
 		{
 			var service = this._factory.CreateSageLiveSaleInvoiceSyncService( this._authInfo, new SageLivePushInvoiceSettings( this._clientCredentials.LegislationId, this._clientCredentials.CompanyName ), "USD" );
@@ -67,7 +66,7 @@ namespace SageLiveUnitTests
 			Assert.AreEqual( true, true );
 		}
 
-		[ TestMethod ]
+		[ Test ]
 		public void InvoiceCreateTest()
 		{
 			var salesInvoice = new SaleInvoice
@@ -109,7 +108,7 @@ namespace SageLiveUnitTests
 			Assert.AreEqual( true, true );
 		}
 
-		[ TestMethod ]
+		[ Test ]
 		public void InvoiceCreateTestPurchase()
 		{
 			var purchaseInvoice = new PurchaseInvoice
@@ -151,7 +150,7 @@ namespace SageLiveUnitTests
 			Assert.AreEqual( true, true );
 		}
 
-		[ TestMethod ]
+		[ Test ]
 		public void SoqlQueryBuilderTest()
 		{
 			var builder = new SoqlQueryBuilder();
