@@ -26,7 +26,7 @@ namespace SageLiveAccess
 
 		private HttpWebRequest CreateSageLiveAuthRequest( string code )
 		{
-			var request = SecurityHelper.CreateWebRequest( "https://login.salesforce.com/services/oauth2/token" );
+			var request = WebRequestCreator.CreateWebRequest( "https://login.salesforce.com/services/oauth2/token" );
 			var data = "grant_type=authorization_code&code={0}&client_id={1}&client_secret={2}&redirect_uri={3}".FormatWith( code, this._config._clientId, this._config._clientSecret, this._config._redirectUri );
 
 			request.ContentType = "application/x-www-form-urlencoded";
@@ -45,7 +45,7 @@ namespace SageLiveAccess
 
 		private HttpWebRequest CreateGetUserRequest( SageLiveAuthResponse response )
 		{
-			var request = SecurityHelper.CreateWebRequest( response.id );
+			var request = WebRequestCreator.CreateWebRequest( response.id );
 			request.Method = WebRequestMethods.Http.Get;
 			request.Headers.Add( HttpRequestHeader.Authorization, "Bearer {0}".FormatWith( response.access_token ) );
 			return request;
@@ -54,8 +54,8 @@ namespace SageLiveAccess
 		public AuthResult AuthentifcateByCode( string code )
 		{
 			var mark = Mark.CreateNew();
-			SageLiveLogger.LogStarted(mark, code);
-			var result =  this.ParseException( mark, ServiceName, true, () =>
+			SageLiveLogger.LogStarted( mark, code );
+			var result = this.ParseException( mark, ServiceName, true, () =>
 			{
 				var getAuthTokenRequest = this.CreateSageLiveAuthRequest( code );
 				var rawAuthResponse = getAuthTokenRequest.GetResponse();
@@ -82,7 +82,7 @@ namespace SageLiveAccess
 				}
 			} );
 
-			SageLiveLogger.LogEnd( mark, code, result != null ? result.sessionId : string.Empty );
+			SageLiveLogger.LogEnd( mark, code, result?.sessionId );
 			return result;
 		}
 	}

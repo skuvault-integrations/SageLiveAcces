@@ -14,6 +14,7 @@ namespace SageLiveAccess.Helpers
 	internal class PresentAndAbsentInvoiceInfo
 	{
 		public readonly List< InvoiceBase > _invoicesToCreate;
+		//Obsolete. Will be removed if will not be used
 		//public readonly List< KeyValuePair< InvoiceBase, string > > _invoicesToUpdate;
 
 		public PresentAndAbsentInvoiceInfo()

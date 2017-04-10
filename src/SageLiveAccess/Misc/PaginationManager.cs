@@ -52,22 +52,22 @@ namespace SageLiveAccess.Misc
 		{
 			SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Processing query pagination for SOQL query: {0}".FormatWith( soqlQuery ) );
 			var result = new List< T >();
-			var qr = await this._asyncQueryManager.QueryAsync( soqlQuery, mark, ct );
+			var queryResult = await this._asyncQueryManager.QueryAsync( soqlQuery, mark, ct );
 			var done = false;
 
-			if( qr.size > 0 )
+			if( queryResult.size > 0 )
 			{
 				while( !done )
 				{
-					var records = qr.records;
+					var records = queryResult.records;
 
-					SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Got {0} more records for query {1}. More records present: {2}".FormatWith( records.Length, soqlQuery, qr.done ) );
+					SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Got {0} more records for query {1}. More records present: {2}".FormatWith( records.Length, soqlQuery, queryResult.done ) );
 					result.AddRange( records.Select( t => t as T ) );
 
-					if( qr.done )
+					if( queryResult.done )
 						done = true;
 					else
-						qr = await this._asyncQueryManager.QueryMoreAsync( qr.queryLocator, mark, ct );
+						queryResult = await this._asyncQueryManager.QueryMoreAsync( queryResult.queryLocator, mark, ct );
 				}
 			}
 			else

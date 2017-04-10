@@ -2,7 +2,7 @@
 
 namespace SageLiveAccess.Helpers
 {
-	static class SecurityHelper
+	static class WebRequestCreator
 	{
 		public static void SetSecurityProtocol()
 		{

@@ -46,7 +46,7 @@ namespace SageLiveAccess
 
 			await this.pushInvoicesService.PushSaleInvoices( saleInvoices, this._currencyCode, mark, ct );
 
-			SageLiveLogger.LogEnd( mark, saleInvoices?.MakeString(), string.Empty );
+			SageLiveLogger.LogEnd( mark, saleInvoices?.MakeString() );
 		}
 	}
 }

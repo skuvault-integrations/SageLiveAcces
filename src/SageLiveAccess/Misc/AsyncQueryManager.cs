@@ -32,14 +32,14 @@ namespace SageLiveAccess.Misc
 			this._refreshToken = refreshToken;
 		}
 
-		private async Task< T > RetryWrapper< T >( Action< TaskIdentifier< T > > f, string info, Mark mark, CancellationToken ct )
+		private async Task< T > RetryWrapper< T >( Action< TaskIdentifier< T > > request, string info, Mark mark, CancellationToken ct )
 		{
 			return await ActionPolicies.GetAsyncQueryManagerActionPolicy( this, this.GetLogPrefix( null, mark, ServiceName ), info, mark ).Get( async () =>
 			{
 				SageLiveLogger.Debug( this.GetLogPrefix( null, mark, ServiceName ), "Trying with Salesforce SOAP API request {0}".FormatWith( info ) );
 				var indentifier = new TaskIdentifier< T >( this._instanceId, new SemaphoreSlim( 0, 1 ), mark );
-				SecurityHelper.SetSecurityProtocol();
-				f.Invoke( indentifier );
+				WebRequestCreator.SetSecurityProtocol();
+				request.Invoke( indentifier );
 				await indentifier.CallbackMonitor.WaitAsync( ct );
 				if( indentifier.Result.IsSuccess )
 				{

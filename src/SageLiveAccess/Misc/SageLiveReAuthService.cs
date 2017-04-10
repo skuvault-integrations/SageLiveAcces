@@ -19,7 +19,7 @@ namespace SageLiveAccess.Misc
 
 		private HttpWebRequest CreateSageLiveReAuthRequest( string refreshToken )
 		{
-			var request = SecurityHelper.CreateWebRequest( "https://login.salesforce.com/services/oauth2/token" );
+			var request = WebRequestCreator.CreateWebRequest( "https://login.salesforce.com/services/oauth2/token" );
 			var data = "grant_type=refresh_token&refresh_token={0}&client_id={1}&client_secret={2}".FormatWith( refreshToken, this._config._clientId, this._config._clientSecret );
 
 			request.ContentType = "application/x-www-form-urlencoded";
