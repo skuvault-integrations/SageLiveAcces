@@ -24,15 +24,29 @@ $solution_file = "$src_dir\$($project_name).sln"
 # Use MSBuild.
 #use Framework\v4.0.30319 MSBuild
 
-if (Test-Path "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\15.0") 
+try
+{
+    $VSFolder = Get-ChildItem ( Join-Path ${env:ProgramFiles(x86)} -ChildPath "Microsoft Visual Studio" | Join-Path -ChildPath  "2017" ) -Directory | Select-Object -first 1
+    $msbuild15Path = Join-Path $VSFolder.FullName -ChildPath "MSBuild" | Join-Path -ChildPath "15.0" | Join-Path -ChildPath "Bin" | Join-Path -ChildPath "msbuild.exe"
+}
+catch { }
+if ( $msbuild15Path -AND ( Test-Path $msbuild15Path ) )
 { 
-    Write-Host "Found ToolsVersions 15"
-    Set-Alias MSBuild (Join-Path -Path (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\15.0").MSBuildToolsPath -ChildPath "MSBuild.exe")
-} 
-elseIf (Test-Path "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\14.0") 
+    Set-Alias MSBuild $msbuild15Path
+    Write-Host "Found BuildTools15: $msbuild15Path"
+}
+elseIf ( Test-Path "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\14.0" ) 
 { 
-    Write-Host "Found ToolsVersions 14"
-    Set-Alias MSBuild (Join-Path -Path (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\14.0").MSBuildToolsPath -ChildPath "MSBuild.exe")
+    $msbuild14Path = Join-Path -Path ( Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\14.0" ).MSBuildToolsPath -ChildPath "MSBuild.exe"
+    Set-Alias MSBuild $msbuild14Path
+    Write-Host "Found BuildTools14: $msbuild14Path" 
+}
+else
+{
+    Write-Host "To build this solution you need to install BuildTools14 or BuildTools15"
+    Write-Host "BuildTools14: https://www.microsoft.com/en-us/download/details.aspx?id=48159"
+    Write-Host "BuildTools15: https://www.visualstudio.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15"
+    exit
 }
 
 
