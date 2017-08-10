@@ -70,14 +70,14 @@ namespace SageLiveAccess.Services
 
 		public async Task< ContactAndAddressInfo > GetContactAndAddressInfo( s2cor__Sage_INV_Trade_Document__c saleInvoice, Mark mark, CancellationToken ct )
 		{
-			var company = ( await this._asyncQueryManager.QueryOneAsync< s2cor__Sage_COR_Company__c >( SoqlQuery.Builder().Select( "Name" ).From( "s2cor__Sage_COR_Company__c" ).Where( "Id" ).IsEqualTo( saleInvoice.s2cor__Company__c ), mark, ct ) ).GetValue( () => new s2cor__Sage_COR_Company__c() );
+			var account = ( await this._asyncQueryManager.QueryOneAsync< Account >( SoqlQuery.Builder().Select( "Name" ).From( "Account" ).Where( "Id" ).IsEqualTo( saleInvoice.s2cor__Account__c ), mark, ct ) ).GetValue( () => new Account() );
 			var contact = ( await this._asyncQueryManager.QueryOneAsync< Contact >( SoqlQuery.Builder().Select( "Name", "MailingAddress", "FirstName", "LastName", "MailingCity", "MailingState", "MailingStreet", "MailingPostalCode" ).From( "Contact" ).Where( "Id" ).IsEqualTo( saleInvoice.s2cor__Contact__c ), mark, ct ) ).GetValue( () => new Contact() );
 
 			var contactInfo = new ContactInfo
 			{
 				FirstName = contact.FirstName ?? "N/A",
 				LastName = contact.LastName ?? "N/A",
-				Company = company.Name ?? "N/A"
+				Company = account.Name ?? "N/A"
 			};
 			var addressInfo = new AddressInfo
 			{
