@@ -38,7 +38,7 @@ namespace SageLiveAccess.Services
 			var invoiceTypeId = invoiceType.Value.Id;
 
 			// get raw invoices
-			var rawInvoices = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__UID__c", "s2cor__Company__c", "s2cor__Date__c", "s2cor__Currency__c", "s2cor__Status__c", "SkuVault_Sage__Fulfilled_By__c", "s2cor__Is_Paid__c", "s2cor__Contact__c", "s2cor__Total_Amount__c", "LastModifiedDate", "s2cor__Document_Number_Tag__c", "s2cor__Document_Number__c" ).From( "s2cor__Sage_INV_Trade_Document__c" ).Where( "LastModifiedDate" ).IsGreaterThan( dateFrom ).And( "LastModifiedDate" ).IsLessThan( dateTo ).And( "s2cor__Trade_Document_Type__c" ).IsEqualTo( invoiceTypeId ), mark, ct /*"SELECT Id, Name, s2cor__UID__c, s2cor__Company__c, s2cor__Date__c, s2cor__Currency__c, s2cor__Status__c, SkuVault_Sage__Fulfilled_By__c, s2cor__Is_Paid__c, s2cor__Contact__c, s2cor__Total_Amount__c, LastModifiedDate FROM s2cor__Sage_INV_Trade_Document__c WHERE LastModifiedDate > {0} AND LastModifiedDate < {1} AND s2cor__Trade_Document_Type__c = '{2}'".FormatWith( this.FormatDate( dateFrom ), this.FormatDate( dateTo ), invoiceTypeId )*/ );
+			var rawInvoices = await this._paginationManager.GetAll< s2cor__Sage_INV_Trade_Document__c >( SoqlQuery.Builder().Select( "Id", "Name", "s2cor__UID__c", "s2cor__Account__c", "s2cor__Date__c", "s2cor__Currency__c", "s2cor__Status__c", "SkuVault_Sage__Fulfilled_By__c", "s2cor__Is_Paid__c", "s2cor__Contact__c", "s2cor__Total_Amount__c", "LastModifiedDate", "s2cor__Document_Number_Tag__c", "s2cor__Document_Number__c" ).From( "s2cor__Sage_INV_Trade_Document__c" ).Where( "LastModifiedDate" ).IsGreaterThan( dateFrom ).And( "LastModifiedDate" ).IsLessThan( dateTo ).And( "s2cor__Trade_Document_Type__c" ).IsEqualTo( invoiceTypeId ), mark, ct /*"SELECT Id, Name, s2cor__UID__c, s2cor__Company__c, s2cor__Date__c, s2cor__Currency__c, s2cor__Status__c, SkuVault_Sage__Fulfilled_By__c, s2cor__Is_Paid__c, s2cor__Contact__c, s2cor__Total_Amount__c, LastModifiedDate FROM s2cor__Sage_INV_Trade_Document__c WHERE LastModifiedDate > {0} AND LastModifiedDate < {1} AND s2cor__Trade_Document_Type__c = '{2}'".FormatWith( this.FormatDate( dateFrom ), this.FormatDate( dateTo ), invoiceTypeId )*/ );
 
 			var invoices = rawInvoices.Select( async rawInvoice =>
 			{
@@ -70,7 +70,7 @@ namespace SageLiveAccess.Services
 
 		public async Task< ContactAndAddressInfo > GetContactAndAddressInfo( s2cor__Sage_INV_Trade_Document__c saleInvoice, Mark mark, CancellationToken ct )
 		{
-			var account = ( await this._asyncQueryManager.QueryOneAsync< Account >( SoqlQuery.Builder().Select( "Name" ).From( "Account" ).Where( "Id" ).IsEqualTo( saleInvoice.s2cor__Account__c ), mark, ct ) ).GetValue( () => new Account() );
+			var account = ( await this._asyncQueryManager.QueryOneAsync< Account >( SoqlQuery.Builder().Select( "Name", "ShippingAddress" ).From( "Account" ).Where( "Id" ).IsEqualTo( saleInvoice.s2cor__Account__c ), mark, ct ) ).GetValue( () => new Account() );
 			var contact = ( await this._asyncQueryManager.QueryOneAsync< Contact >( SoqlQuery.Builder().Select( "Name", "MailingAddress", "FirstName", "LastName", "MailingCity", "MailingState", "MailingStreet", "MailingPostalCode" ).From( "Contact" ).Where( "Id" ).IsEqualTo( saleInvoice.s2cor__Contact__c ), mark, ct ) ).GetValue( () => new Contact() );
 
 			var contactInfo = new ContactInfo
@@ -79,13 +79,29 @@ namespace SageLiveAccess.Services
 				LastName = contact.LastName ?? "N/A",
 				Company = account.Name ?? "N/A"
 			};
-			var addressInfo = new AddressInfo
-			{
-				City = contact.MailingCity ?? "N/A",
-				State = contact.MailingState ?? "N/A",
-				Street = contact.MailingStreet ?? "N/A",
-				Zip = contact.MailingPostalCode ?? "N/A"
-			};
+
+			var accountShippingAddress = account.ShippingAddress;
+			var accountWithShippingAddress = accountShippingAddress != null &&
+			                                 ( !string.IsNullOrEmpty( accountShippingAddress.city ) ||
+			                                   !string.IsNullOrEmpty( accountShippingAddress.state ) ||
+			                                   !string.IsNullOrEmpty( accountShippingAddress.street ) ||
+			                                   !string.IsNullOrEmpty( accountShippingAddress.postalCode ) );
+
+			var addressInfo = accountWithShippingAddress
+				? new AddressInfo
+				{
+					City = accountShippingAddress.city ?? "N/A",
+					State = accountShippingAddress.state ?? "N/A",
+					Street = accountShippingAddress.street ?? "N/A",
+					Zip = accountShippingAddress.postalCode ?? "N/A"
+				}
+				: new AddressInfo
+				{
+					City = contact.MailingCity ?? "N/A",
+					State = contact.MailingState ?? "N/A",
+					Street = contact.MailingStreet ?? "N/A",
+					Zip = contact.MailingPostalCode ?? "N/A"
+				};
 
 			return new ContactAndAddressInfo
 			{
