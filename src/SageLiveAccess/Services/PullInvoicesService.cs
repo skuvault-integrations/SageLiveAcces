@@ -82,10 +82,10 @@ namespace SageLiveAccess.Services
 
 			var accountShippingAddress = account.ShippingAddress;
 			var accountWithShippingAddress = accountShippingAddress != null &&
-			                                 ( !string.IsNullOrEmpty( accountShippingAddress.city ) ||
-			                                   !string.IsNullOrEmpty( accountShippingAddress.state ) ||
-			                                   !string.IsNullOrEmpty( accountShippingAddress.street ) ||
-			                                   !string.IsNullOrEmpty( accountShippingAddress.postalCode ) );
+			                                 ( !string.IsNullOrWhiteSpace( accountShippingAddress.city ) ||
+			                                   !string.IsNullOrWhiteSpace( accountShippingAddress.state ) ||
+			                                   !string.IsNullOrWhiteSpace( accountShippingAddress.street ) ||
+			                                   !string.IsNullOrWhiteSpace( accountShippingAddress.postalCode ) );
 
 			var addressInfo = accountWithShippingAddress
 				? new AddressInfo
